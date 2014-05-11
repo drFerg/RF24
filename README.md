@@ -1,4 +1,4 @@
-# Arduino & Raspberry Pi driver for nRF24L01(+) 2.4GHz Wireless Transceiver
+# A C Raspberry Pi driver for nRF24L01(+) 2.4GHz Wireless Transceiver
 
 Design Goals: 
 
