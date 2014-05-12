@@ -36,13 +36,9 @@ RF24.o: RF24.cpp
 	g++ -Wall ${CCFLAGS} -c RF24.cpp
 
 gpio.o: gpio.c gpio.h
+spi.o: spi.c spi.h
 
-spi.o: spi.cpp
-	g++ -Wall ${CCFLAGS} -c spi.cpp
-
-compatibility.o: compatibility.c
-	gcc -Wall  ${CCFLAGS} -c compatibility.c
-
+compatibility.o: compatibility.c compatibility.h
 # clear build files
 clean:
 	rm -rf *o ${LIBNAME}
