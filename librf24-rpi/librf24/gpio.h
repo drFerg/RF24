@@ -1,60 +1,27 @@
-/* 
- * https://github.com/mrshu/GPIOlib
- * Copyright (c) 2011, Copyright (c) 2011 mr.Shu
- * All rights reserved. 
- * 
- * Modified on 24 June 2012, 11:06 AM
- * File:   gpio.h
- * Author: purinda (purinda@gmail.com)
- * 
- */
+#ifndef GPIO_H
+#define	GPIO_H
+/* GPIO pin directions */
+#define GPIO_IN 0
+#define GPIO_OUT 1
+/* GPIO pin values */
+#define GPIO_LOW 0
+#define GPIO_HIGH 1
 
-#ifndef H
-#define	H
+/* Opens the specified port as an input or output
+ * returns 1 if successful, 0 otherwise */
+int gpio_open(int port, int dir);
 
-#include <cstdio>
+/* Closes the specified port
+ * returns 1 if successful, 0 otherwise */
+int gpio_close(int port);
 
-class GPIO {
-public:
+/* Reads the specified port into the provided val
+ * returns 1 if successful, 0 otherwise */
+int gpio_read(int port, int *val);
 
-	/* Constants */
-	static const int DIRECTION_OUT = 1;
-	static const int DIRECTION_IN = 0;
-	
-	static const int OUTPUT_HIGH = 1;
-	static const int OUTPUT_LOW = 0;
-		
-	GPIO();
-	
-	/**
-	 * 
-     * @param port
-     * @param DDR
-     */
-	static void open(int port, int DDR);
-	/**
-	 * 
-     * @param port
-     */
-	static void close(int port);
-	/**
-	 * 
-     * @param port
-     * @param value
-     */
-	static int read(int port);
-	/**
-	* 
-	* @param port
-	* @param value
-	*/	
-	static void write(int port,int value);	
-	
-	virtual ~GPIO();
-	
-private:
+/* Writes val to the specified port
+ * returns 1 if successful, 0 otherwise */
+int gpio_write(int port, int val);
 
-};
-
-#endif	/* H */
+#endif	/* GPIO_H */
 
