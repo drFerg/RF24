@@ -78,16 +78,19 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed) {
 }
 
 uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
-	if (spi == NULL) return 0;
+	if (spi == NULL) {
+		perror("ERROR: NULL spi state");
+		return 0;
+	}
 	int ret;
 	// One byte is transferred at once
 	uint8_t tx[] = {0};
 	tx[0] = val;
 
-	//uint8_t rx[ARRAY_SIZE(tx)] = {0};
+	uint8_t rx_val[ARRAY_SIZE(tx)] = {0};
 	struct spi_ioc_transfer tr;
 	tr.tx_buf = (unsigned long)tx;
-	tr.rx_buf = (unsigned long)rx;
+	tr.rx_buf = (unsigned long)rx_val;
 	tr.len = ARRAY_SIZE(tx);
 	tr.delay_usecs = 0;
 //	tr.cs_change = 1;
@@ -100,6 +103,7 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		perror("ERROR: can't send spi message");
 		return 0;		
 	}
+	if (rx != NULL) memcpy(rx, rx_val, 1);
 	return 1;
 }
 

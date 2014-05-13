@@ -32,9 +32,7 @@ librf24: gpio.o RF24.o spi.o compatibility.o
 	g++ -shared -Wl,-soname,librf24.so.1 ${CCFLAGS} -o ${LIBNAME} compatibility.o gpio.o spi.o RF24.o
 
 # Library parts
-RF24.o: RF24.cpp
-	g++ -Wall ${CCFLAGS} -c RF24.cpp
-
+RF24.o: RF24.c RF24.h
 gpio.o: gpio.c gpio.h
 spi.o: spi.c spi.h
 

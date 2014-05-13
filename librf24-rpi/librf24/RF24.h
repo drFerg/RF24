@@ -19,6 +19,7 @@
 //#include "lib/RF24/compatibility.h"
 #include "compatibility.h"
 
+typedef uint8_t bool;
 /**
  * Power Amplifier level.
  *
@@ -44,219 +45,184 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
  * Driver for nRF24L01(+) 2.4GHz Wireless Transceiver
  */
 
-class RF24
-{
-private:
-  uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
-  string spidevice;
-  uint32_t spispeed;
-  uint8_t csn_pin; /**< SPI Chip select */
-  bool wide_band; /* 2Mbs data rate in use? */
-  bool p_variant; /* False for RF24L01 and true for RF24L01P */
-  uint8_t payload_size; /**< Fixed size of payloads */
-  bool ack_payload_available; /**< Whether there is an ack payload waiting */
-  bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */ 
-  uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
-  uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
 
-  SPI* spi;
-  
-protected:
-  /**
-   * @name Low-level internal interface.
-   *
-   *  Protected methods that address the chip directly.  Regular users cannot
-   *  ever call these.  They are documented for completeness and for developers who
-   *  may want to extend this class.
-   */
-  /**@{*/
+// protected:
+//   /**
+//    * @name Low-level internal interface.
+//    *
+//    *  Protected methods that address the chip directly.  Regular users cannot
+//    *  ever call these.  They are documented for completeness and for developers who
+//    *  may want to extend this class.
+//    */
+//   /**@{*/
 
-  /**
-   * Set chip select pin
-   *
-   * Running SPI bus at PI_CLOCK_DIV2 so we don't waste time transferring data
-   * and best of all, we make use of the radio's FIFO buffers. A lower speed
-   * means we're less likely to effectively leverage our FIFOs and pay a higher
-   * AVR runtime cost as toll.
-   *
-   * @param mode HIGH to take this unit off the SPI bus, LOW to put it on
-   */
-  void csn(int mode);
+//   /**
+//    * Set chip select pin
+//    *
+//    * Running SPI bus at PI_CLOCK_DIV2 so we don't waste time transferring data
+//    * and best of all, we make use of the radio's FIFO buffers. A lower speed
+//    * means we're less likely to effectively leverage our FIFOs and pay a higher
+//    * AVR runtime cost as toll.
+//    *
+//    * @param mode HIGH to take this unit off the SPI bus, LOW to put it on
+//    */
+//   void csn(int mode);
 
-  /**
-   * Set chip enable
-   *
-   * @param level HIGH to actively begin transmission or LOW to put in standby.  Please see data sheet
-   * for a much more detailed description of this pin.
-   */
-  void ce(int level);
+//   /**
+//    * Set chip enable
+//    *
+//    * @param level HIGH to actively begin transmission or LOW to put in standby.  Please see data sheet
+//    * for a much more detailed description of this pin.
+//    */
+//   void ce(int level);
 
-  /**
-   * Read a chunk of data in from a register
-   *
-   * @param reg Which register. Use constants from nRF24L01.h
-   * @param buf Where to put the data
-   * @param len How many bytes of data to transfer
-   * @return Current value of status register
-   */
-  uint8_t read_register(uint8_t reg, uint8_t* buf, uint8_t len);
+//   /**
+//    * Read a chunk of data in from a register
+//    *
+//    * @param reg Which register. Use constants from nRF24L01.h
+//    * @param buf Where to put the data
+//    * @param len How many bytes of data to transfer
+//    * @return Current value of status register
+//    */
+//   uint8_t read_register(uint8_t reg, uint8_t* buf, uint8_t len);
 
-  /**
-   * Read single byte from a register
-   *
-   * @param reg Which register. Use constants from nRF24L01.h
-   * @return Current value of register @p reg
-   */
-  uint8_t read_register(uint8_t reg);
+//   /**
+//    * Read single byte from a register
+//    *
+//    * @param reg Which register. Use constants from nRF24L01.h
+//    * @return Current value of register @p reg
+//    */
+//   uint8_t read_register(uint8_t reg);
 
-  /**
-   * Write a chunk of data to a register
-   *
-   * @param reg Which register. Use constants from nRF24L01.h
-   * @param buf Where to get the data
-   * @param len How many bytes of data to transfer
-   * @return Current value of status register
-   */
-  uint8_t write_register(uint8_t reg, const uint8_t* buf, uint8_t len);
+//   /**
+//    * Write a chunk of data to a register
+//    *
+//    * @param reg Which register. Use constants from nRF24L01.h
+//    * @param buf Where to get the data
+//    * @param len How many bytes of data to transfer
+//    * @return Current value of status register
+//    */
+//   uint8_t write_register(uint8_t reg, const uint8_t* buf, uint8_t len);
 
-  /**
-   * Write a single byte to a register
-   *
-   * @param reg Which register. Use constants from nRF24L01.h
-   * @param value The new value to write
-   * @return Current value of status register
-   */
-  uint8_t write_register(uint8_t reg, uint8_t value);
+//   /**
+//    * Write a single byte to a register
+//    *
+//    * @param reg Which register. Use constants from nRF24L01.h
+//    * @param value The new value to write
+//    * @return Current value of status register
+//    */
+//   uint8_t write_register(uint8_t reg, uint8_t value);
 
-  /**
-   * Write the transmit payload
-   *
-   * The size of data written is the fixed payload size, see getPayloadSize()
-   *
-   * @param buf Where to get the data
-   * @param len Number of bytes to be sent
-   * @return Current value of status register
-   */
-  uint8_t write_payload(const void* buf, uint8_t len);
+//   /**
+//    * Write the transmit payload
+//    *
+//    * The size of data written is the fixed payload size, see getPayloadSize()
+//    *
+//    * @param buf Where to get the data
+//    * @param len Number of bytes to be sent
+//    * @return Current value of status register
+//    */
+//   uint8_t write_payload(const void* buf, uint8_t len);
 
-  /**
-   * Read the receive payload
-   *
-   * The size of data read is the fixed payload size, see getPayloadSize()
-   *
-   * @param buf Where to put the data
-   * @param len Maximum number of bytes to read
-   * @return Current value of status register
-   */
-  uint8_t read_payload(void* buf, uint8_t len);
+//   *
+//    * Read the receive payload
+//    *
+//    * The size of data read is the fixed payload size, see getPayloadSize()
+//    *
+//    * @param buf Where to put the data
+//    * @param len Maximum number of bytes to read
+//    * @return Current value of status register
+   
+//   uint8_t read_payload(void* buf, uint8_t len);
 
-  /**
-   * Empty the receive buffer
-   *
-   * @return Current value of status register
-   */
-  uint8_t flush_rx(void);
+//   /**
+//    * Empty the receive buffer
+//    *
+//    * @return Current value of status register
+//    */
+//   uint8_t flush_rx();
 
-  /**
-   * Empty the transmit buffer
-   *
-   * @return Current value of status register
-   */
-  uint8_t flush_tx(void);
+//   /**
+//    * Empty the transmit buffer
+//    *
+//    * @return Current value of status register
+//    */
+//   uint8_t flush_tx();
 
-  /**
-   * Retrieve the current status of the chip
-   *
-   * @return Current value of status register
-   */
-  uint8_t get_status(void);
+//   /**
+//    * Retrieve the current status of the chip
+//    *
+//    * @return Current value of status register
+//    */
+//   uint8_t get_status();
 
-  /**
-   * Decode and print the given status to stdout
-   *
-   * @param status Status value to print
-   *
-   * @warning Does nothing if stdout is not defined.  See fdevopen in stdio.h
-   */
-  void print_status(uint8_t status);
+//   /**
+//    * Decode and print the given status to stdout
+//    *
+//    * @param status Status value to print
+//    *
+//    * @warning Does nothing if stdout is not defined.  See fdevopen in stdio.h
+//    */
+//   void print_status(uint8_t status);
 
-  /**
-   * Decode and print the given 'observe_tx' value to stdout
-   *
-   * @param value The observe_tx value to print
-   *
-   * @warning Does nothing if stdout is not defined.  See fdevopen in stdio.h
-   */
-  void print_observe_tx(uint8_t value);
+//   /**
+//    * Decode and print the given 'observe_tx' value to stdout
+//    *
+//    * @param value The observe_tx value to print
+//    *
+//    * @warning Does nothing if stdout is not defined.  See fdevopen in stdio.h
+//    */
+//   void print_observe_tx(uint8_t value);
 
-  /**
-   * Print the name and value of an 8-bit register to stdout
-   *
-   * Optionally it can print some quantity of successive
-   * registers on the same line.  This is useful for printing a group
-   * of related registers on one line.
-   *
-   * @param name Name of the register
-   * @param reg Which register. Use constants from nRF24L01.h
-   * @param qty How many successive registers to print
-   */
-  void print_byte_register(const char* name, uint8_t reg, uint8_t qty = 1);
+//   /**
+//    * Print the name and value of an 8-bit register to stdout
+//    *
+//    * Optionally it can print some quantity of successive
+//    * registers on the same line.  This is useful for printing a group
+//    * of related registers on one line.
+//    *
+//    * @param name Name of the register
+//    * @param reg Which register. Use constants from nRF24L01.h
+//    * @param qty How many successive registers to print
+//    */
+//   void print_byte_register(const char* name, uint8_t reg, uint8_t qty = 1);
 
-  /**
-   * Print the name and value of a 40-bit address register to stdout
-   *
-   * Optionally it can print some quantity of successive
-   * registers on the same line.  This is useful for printing a group
-   * of related registers on one line.
-   *
-   * @param name Name of the register
-   * @param reg Which register. Use constants from nRF24L01.h
-   * @param qty How many successive registers to print
-   */
-  void print_address_register(const char* name, uint8_t reg, uint8_t qty = 1);
+//   /**
+//    * Print the name and value of a 40-bit address register to stdout
+//    *
+//    * Optionally it can print some quantity of successive
+//    * registers on the same line.  This is useful for printing a group
+//    * of related registers on one line.
+//    *
+//    * @param name Name of the register
+//    * @param reg Which register. Use constants from nRF24L01.h
+//    * @param qty How many successive registers to print
+//    */
+//   void print_address_register(const char* name, uint8_t reg, uint8_t qty = 1);
 
-  /**
-   * Turn on or off the special features of the chip
-   *
-   * The chip has certain 'features' which are only available when the 'features'
-   * are enabled.  See the datasheet for details.
-   */
-  void toggle_features(void);
-  /**@}*/
+//   /**
+//    * Turn on or off the special features of the chip
+//    *
+//    * The chip has certain 'features' which are only available when the 'features'
+//    * are enabled.  See the datasheet for details.
+//    */
+//   void toggle_features();
+//   /**@}*/
 
-public:
-  /**
-   * @name Primary public interface
-   *
-   *  These are the main methods you need to operate the chip
-   */
-  /**@{*/
-
-  /**
-   * Constructor
-   *
-   * Creates a new instance of this driver.  Before using, you create an instance
-   * and send in the unique pins that this chip is connected to.
-   *
-   * @param _cepin The pin attached to Chip Enable on the RF module
-   * @param _cspin The pin attached to Chip SPI chipSelect
-   */
-  RF24(uint8_t _cepin, uint8_t _cspin);
-  RF24(string _spidevice, uint32_t _spispeed, uint8_t _cepin);
 
   /**
    * Begin operation of the chip
    *
    * Call this in setup(), before calling any other methods.
    */
-  void begin(void);
+  void rf24_begin();
 
  /**
    * Reset confguration of the chip
    *
    * Call this to reset all registers
    */
-  void resetcfg(void);
+  void rf24_resetcfg();
 
   /**
    * Start listening on the pipes opened for reading.
@@ -265,14 +231,14 @@ public:
    * in this mode, without first calling stopListening().  Call
    * isAvailable() to check for incoming traffic, and read() to get it.
    */
-  void startListening(void);
+  void rf24_startListening();
 
   /**
    * Stop listening for incoming messages
    *
    * Do this before calling write().
    */
-  void stopListening(void);
+  void rf24_stopListening();
 
   /**
    * Write to the open writing pipe
@@ -292,14 +258,14 @@ public:
    * @param len Number of bytes to be sent
    * @return True if the payload was delivered successfully false if not
    */
-  bool write( const void* buf, uint8_t len );
+  bool rf24_write( const void* buf, uint8_t len );
 
   /**
    * Test whether there are bytes available to be read
    *
    * @return True if there is a payload available, false if none is
    */
-  bool available(void);
+  bool rf24_available();
 
   /**
    * Read the payload
@@ -315,7 +281,7 @@ public:
    * @param len Maximum number of bytes to read into the buffer
    * @return True if the payload was delivered successfully false if not
    */
-  bool read( void* buf, uint8_t len );
+  bool rf24_read( void* buf, uint8_t len );
 
   /**
    * Open a pipe for writing
@@ -335,7 +301,7 @@ public:
    * and only one other radio is listening to it.  Coordinate these pipe
    * addresses amongst nodes on the network.
    */
-  void openWritingPipe(uint64_t address);
+  void rf24_openWritingPipe(uint64_t address);
 
   /**
    * Open a pipe for reading
@@ -361,7 +327,7 @@ public:
    * @param number Which pipe# to open, 0-5.
    * @param address The 40-bit address of the pipe to open.
    */
-  void openReadingPipe(uint8_t number, uint64_t address);
+  void rf24_openReadingPipe(uint8_t number, uint64_t address);
 
   /**@}*/
   /**
@@ -379,14 +345,14 @@ public:
    * max is 15.  0 means 250us, 15 means 4000us.
    * @param count How many retries before giving up, max 15
    */
-  void setRetries(uint8_t delay, uint8_t count);
+  void rf24_setRetries(uint8_t delay, uint8_t count);
 
   /**
    * Set RF communication channel
    *
    * @param channel Which RF channel to communicate on, 0-127
    */
-  void setChannel(uint8_t channel);
+  void rf24_setChannel(uint8_t channel);
 
   /**
    * Set Static Payload Size
@@ -400,7 +366,7 @@ public:
    *
    * @param size The number of bytes in the payload
    */
-  void setPayloadSize(uint8_t size);
+  void rf24_setPayloadSize(uint8_t size);
 
   /**
    * Get Static Payload Size
@@ -409,7 +375,7 @@ public:
    *
    * @return The number of bytes in the payload
    */
-  uint8_t getPayloadSize(void);
+  uint8_t rf24_getPayloadSize();
 
   /**
    * Get Dynamic Payload Size
@@ -419,7 +385,7 @@ public:
    *
    * @return Payload length of last-received dynamic payload
    */
-  uint8_t getDynamicPayloadSize(void);
+  uint8_t rf24_getDynamicPayloadSize();
   
   /**
    * Enable custom payloads on the acknowledge packets
@@ -429,7 +395,7 @@ public:
    *
    * @see examples/pingpair_pl/pingpair_pl.pde
    */
-  void enableAckPayload(void);
+  void rf24_enableAckPayload();
 
   /**
    * Enable dynamically-sized payloads
@@ -439,7 +405,7 @@ public:
    *
    * @see examples/pingpair_pl/pingpair_dyn.pde
    */
-  void enableDynamicPayloads(void);
+  void rf24_enableDynamicPayloads();
 
   /**
    * Determine whether the hardware is an nRF24L01+ or not.
@@ -447,7 +413,7 @@ public:
    * @return true if the hardware is nRF24L01+ (or compatible) and false
    * if its not.
    */
-  bool isPVariant(void) ;
+  bool rf24_isPVariant() ;
 
   /**
    * Enable or disable auto-acknowlede packets
@@ -457,7 +423,7 @@ public:
    *
    * @param enable Whether to enable (true) or disable (false) auto-acks
    */
-  void setAutoAck(bool enable);
+  void rf24_setAutoAck(bool enable);
 
   /**
    * Enable or disable auto-acknowlede packets on a per pipeline basis.
@@ -468,7 +434,7 @@ public:
    * @param pipe Which pipeline to modify
    * @param enable Whether to enable (true) or disable (false) auto-acks
    */
-  void setAutoAck( uint8_t pipe, bool enable ) ;
+  void rf24_setAutoAck( uint8_t pipe, bool enable ) ;
 
   /**
    * Set Power Amplifier (PA) level to one of four levels.
@@ -479,7 +445,7 @@ public:
    *
    * @param level Desired PA level.
    */
-  void setPALevel( rf24_pa_dbm_e level ) ;
+  void rf24_setPALevel( rf24_pa_dbm_e level ) ;
 
   /**
    * Fetches the current PA level.
@@ -489,7 +455,7 @@ public:
    * by the enum mnemonics are negative dBm. See setPALevel for
    * return value descriptions.
    */
-  rf24_pa_dbm_e getPALevel( void ) ;
+  rf24_pa_dbm_e rf24_getPALevel( void ) ;
 
   /**
    * Set the transmission data rate
@@ -499,7 +465,7 @@ public:
    * @param speed RF24_250KBPS for 250kbs, RF24_1MBPS for 1Mbps, or RF24_2MBPS for 2Mbps
    * @return true if the change was successful
    */
-  bool setDataRate(rf24_datarate_e speed);
+  bool rf24_setDataRate(rf24_datarate_e speed);
   
   /**
    * Fetches the transmission data rate
@@ -508,27 +474,27 @@ public:
    * is one of 250kbs, RF24_1MBPS for 1Mbps, or RF24_2MBPS, as defined in the
    * rf24_datarate_e enum.
    */
-  rf24_datarate_e getDataRate( void ) ;
+  rf24_datarate_e rf24_getDataRate( void ) ;
 
   /**
    * Set the CRC length
    *
    * @param length RF24_CRC_8 for 8-bit or RF24_CRC_16 for 16-bit
    */
-  void setCRCLength(rf24_crclength_e length);
+  void rf24_setCRCLength(rf24_crclength_e length);
 
   /**
    * Get the CRC length
    *
    * @return RF24_DISABLED if disabled or RF24_CRC_8 for 8-bit or RF24_CRC_16 for 16-bit
    */
-  rf24_crclength_e getCRCLength(void);
+  rf24_crclength_e rf24_getCRCLength();
 
   /**
    * Disable CRC validation
    *
    */
-  void disableCRC( void ) ;
+  void rf24_disableCRC( void ) ;
 
   /**@}*/
   /**
@@ -543,7 +509,7 @@ public:
    *
    * @warning Does nothing if stdout is not defined.  See fdevopen in stdio.h
    */
-  void printDetails(void);
+  void rf24_printDetails();
 
   /**
    * Enter low-power mode
@@ -551,14 +517,14 @@ public:
    * To return to normal power mode, either write() some data or
    * startListening, or powerUp().
    */
-  void powerDown(void);
+  void rf24_powerDown();
 
   /**
    * Leave low-power mode - making radio more responsive
    *
    * To return to low power mode, call powerDown().
    */
-  void powerUp(void) ;
+  void rf24_powerUp() ;
 
   /**
    * Test whether there are bytes available to be read
@@ -569,7 +535,7 @@ public:
    * @param[out] pipe_num Which pipe has the payload available
    * @return True if there is a payload available, false if none is
    */
-  bool available(uint8_t* pipe_num);
+  bool rf24_available(uint8_t* pipe_num);
 
   /**
    * Non-blocking write to the open writing pipe
@@ -584,7 +550,7 @@ public:
    * @param len Number of bytes to be sent
    * @return True if the payload was delivered successfully false if not
    */
-  void startWrite( const void* buf, uint8_t len );
+  void rf24_startWrite( const void* buf, uint8_t len );
 
   /**
    * Write an ack payload for the specified pipe
@@ -600,7 +566,7 @@ public:
    * @param len Length of the data to send, up to 32 bytes max.  Not affected
    * by the static payload set by setPayloadSize().
    */
-  void writeAckPayload(uint8_t pipe, const void* buf, uint8_t len);
+  void rf24_writeAckPayload(uint8_t pipe, const void* buf, uint8_t len);
 
   /**
    * Determine if an ack payload was received in the most recent call to
@@ -615,7 +581,7 @@ public:
    *
    * @return True if an ack payload is available.
    */
-  bool isAckPayloadAvailable(void);
+  bool rf24_isAckPayloadAvailable();
 
   /**
    * Call this when you get an interrupt to find out why
@@ -627,7 +593,7 @@ public:
    * @param[out] tx_fail The send failed, too many retries (MAX_RT)
    * @param[out] rx_ready There is a message waiting to be read (RX_DS)
    */
-  void whatHappened(bool& tx_ok,bool& tx_fail,bool& rx_ready);
+  void rf24_whatHappened(bool& tx_ok,bool& tx_fail,bool& rx_ready);
 
   /**
    * Test whether there was a carrier on the line for the
@@ -637,7 +603,7 @@ public:
    *
    * @return true if was carrier, false if not
    */
-  bool testCarrier(void);
+  bool rf24_testCarrier();
 
   /**
    * Test whether a signal (carrier or otherwise) greater than
@@ -649,10 +615,8 @@ public:
    *
    * @return true if signal => -64dBm, false if not
    */
-  bool testRPD(void) ;
+  bool rf24_testRPD() ;
 
-  /**@}*/
-};
 
 /**
  * @example GettingStarted.pde
