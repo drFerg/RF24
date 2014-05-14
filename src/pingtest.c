@@ -7,7 +7,7 @@ void setup(void)
     // init radio for reading
   // spi device, spi speed, ce gpio pin
     uint8_t status = rf24_init_radio("/dev/spidev0.0",8000000,25);
-    if (status == 0) return;
+    if (status == 0) exit(-1);
     rf24_enableDynamicPayloads();
     rf24_setAutoAckOnPipe(1, 1);
     rf24_setRetries(15,15);
