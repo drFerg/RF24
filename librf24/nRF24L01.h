@@ -22,7 +22,27 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-/* Memory Map */
+/* SPI Command Mnemonics */
+#define R_REGISTER    0x00 /* Read register */
+#define W_REGISTER    0x20 /* Write register */
+#define REGISTER_MASK 0x1F
+
+#define R_RX_PAYLOAD  0x61 /* Dequeues and reads RX payload */
+#define W_TX_PAYLOAD  0xA0 /* Enqueues TX payload */
+
+#define ACTIVATE      0x50 /* Activates 3 commands below */
+#define ACTIVATE_2    0x73 /* Always sent after ACTIVATE command */
+#define R_RX_PL_WID   0x60 /* Read RX-payload width for top R_RX_PAYLOAD */
+#define W_ACK_PAYLOAD 0xA8 /* Write payload with ACK packet i.e. piggyback */
+#define W_TX_PAYLOAD_NOACK 0xB0 /* Disables Auto-ACK on this packet */
+
+#define FLUSH_TX      0xE1 /* Flush TX FIFO */
+#define FLUSH_RX      0xE2 /* Flush RX FIFO */
+#define REUSE_TX_PL   0xE3 /* Reuse last TX payload */
+#define NOP           0xFF /* No operation, might be used to read STATUS reg */
+
+
+/* Register Map */
 #define CONFIG      0x00
 #define EN_AA       0x01
 #define EN_RXADDR   0x02
@@ -50,77 +70,97 @@
 #define DYNPD	    0x1C
 #define FEATURE	    0x1D
 
-/* Bit Mnemonics */
-#define MASK_RX_DR  0x30
-#define MASK_TX_DS  0x20
-#define MASK_MAX_RT 0x10
-#define EN_CRC      0x08
-#define CRCO        0x04
-#define PWR_UP      0x02
-#define PRIM_RX     0x00
-#define ENAA_P5     0x20
-#define ENAA_P4     0x10
-#define ENAA_P3     0x08
-#define ENAA_P2     0x04
-#define ENAA_P1     0x02
-#define ENAA_P0     0x00
-#define ERX_P5      0x20
-#define ERX_P4      0x10
-#define ERX_P3      0x08
-#define ERX_P2      0x04
-#define ERX_P1      0x02
-#define ERX_P0      0x00
-#define AW          0x00
-#define ARD         0x10
-#define ARC         0x00
-#define PLL_LOCK    0x10
-#define RF_DR       0x08
-#define RF_PWR      0x30
-#define RX_DR       0x30
-#define TX_DS       0x20
-#define MAX_RT      0x10
-#define RX_P_NO     0x02
-#define TX_FULL     0x00
-#define PLOS_CNT    0x10
-#define ARC_CNT     0x00
-#define TX_REUSE    0x30
-#define FIFO_FULL   0x20
-#define TX_EMPTY    0x10
-#define RX_FULL     0x02
-#define RX_EMPTY    0x00
-#define DPL_P5	    0x20
-#define DPL_P4	    0x10
-#define DPL_P3	    0x08
-#define DPL_P2	    0x04
-#define DPL_P1	    0x02
-#define DPL_P0	    0x00
-#define EN_DPL	    0x04
-#define EN_ACK_PAY  0x02
-#define EN_DYN_ACK  0x00
-#define RST_CFG     0x0F
+/***** Bit Mnemonics *****/
 
-/* Instruction Mnemonics */
-#define R_REGISTER    0x00
-#define W_REGISTER    0x20
-#define REGISTER_MASK 0x1F
-#define ACTIVATE      0x50
-#define R_RX_PL_WID   0x60
-#define R_RX_PAYLOAD  0x61
-#define W_TX_PAYLOAD  0xA0
-#define W_ACK_PAYLOAD 0xA8
-#define FLUSH_TX      0xE1
-#define FLUSH_RX      0xE2
-#define REUSE_TX_PL   0xE3
-#define NOP           0xFF
+/* CONFIG register bit fields */
+#define MASK_RX_DR  0x20
+#define MASK_TX_DS  0x10
+#define MASK_MAX_RT 0x04
+#define EN_CRC      0x08 /* Enable CRC */
+#define CRCO        0x03 /* CRC scheme (1 or 2 bytes) */
+#define PWR_UP      0x02 /* POWER UP OR DOWN */
+#define PRIM_RX     0x01 /* Switch modes RX/TX */
 
-/* Non-P omissions */
-#define LNA_HCURR   0
+/* EN_AA Enhanced Shockburst register bit fields */
+#define ENAA_P5     0x10 /* Enable Auto-ACK in pipe PX */
+#define ENAA_P4     0x04 /* ^ */
+#define ENAA_P3     0x08 /* ^ */
+#define ENAA_P2     0x03 /* ^ */
+#define ENAA_P1     0x02 /* ^ */
+#define ENAA_P0     0x01 /* ^ */
+#define ENAA_ALL    0x3F /* Enable Auto-ACK in all pipes */
+#define ENAA_NONE   0x01 /* Disable Auto-ACK in all pipes */
+
+/* EN_RXADDR register bit fields */
+#define ERX_P5      0x10 /* Enable data pipe PX */
+#define ERX_P4      0x04 /* ^ */
+#define ERX_P3      0x08 /* ^ */
+#define ERX_P2      0x03 /* ^ */
+#define ERX_P1      0x02 /* ^ */
+#define ERX_P0      0x01 /* ^ */
+
+/* SETUP_AW register bit fields */
+#define AW          0x01 /* Address field width */
+
+/* SETUP_RETR register bit fields */
+#define ARD         0x10 /* Auto re-tx delay */
+#define ARC         0x01 /* Auto re-tx count */
+
+/* RF_CH register bit fields */
+#define RF_CH_CMD   0x01 /* Sets frequency channel nRF24L01 operates on */
+
+/* RF_SETUP register bit fields */
+#define PLL_LOCK    0x04 /* Force PLL lock signal, TEST_ONLY */
+#define RF_DR       0x08 /* RF data rate */
+#define RF_DR_LOW   0x20 /* 250Kbps */
+#define RF_DR_HIGH  0x08 /* 2Mbps */
+#define RF_DR_250K  0x20
+#define RF_DR_1M    0x28
+#define RF_DR_2M    0x08
+#define RF_PWR      0x20 /* RF power output */
+#define RF_PWR_LOW  1
+#define RF_PWR_HIGH 2
+#define LNA_HCURR   0x01 /* Setup LNA gain */
+
+/* SETUP register bit fields */
+#define RX_DR       0x20 /* Data ready in RX FIFO */
+#define TX_DS       0x10 /* Transmit data sent, packet has been tx */ 
+#define MAX_RT      0x04 /* Maximum number of re-tx */
+#define RX_P_NO     0x02 /* Data pipe num of packet available in RX FIFO */
+#define TX_FIFO_FULL 0x01 /* TX FIFO full */
+
+/* OBSERVE_TX register bit fields */
+#define PLOS_CNT    0x04 /* Count loss packets, caps at 15 */
+#define ARC_CNT     0x01 /* Count re-tx packets, resets when tx new packet */
+
+/* CD register bit fields */
+#define CD_CMD      0x01 /* Carrier Detect */
+
+/* FIFO_STATUS register bit fields */
+#define TX_REUSE    0x20 /* Reuse last TX packet */
+#define TX_FULL     0x10 /* TX FIFO full */
+#define TX_EMPTY    0x04 /* TX FIFO empty */
+#define RX_FULL     0x02 /* RX FIFO full */
+#define RX_EMPTY    0x01 /* RX FIFO empty */
+
+/* DYNPD register bit fields */
+#define DPL_P5	    0x10 /* Enable Dynamic Payload Length in pipe PX */
+#define DPL_P4	    0x04 /* ^ */
+#define DPL_P3	    0x08 /* ^ */
+#define DPL_P2	    0x03 /* ^ */
+#define DPL_P1	    0x02 /* ^ */
+#define DPL_P0	    0x01 /* ^ */
+
+/* FEATURE register bit fields */
+#define EN_DPL	    0x03 /* Enables Dynamic Payload Length */
+#define EN_ACK_PAY  0x02 /* Enables Payload with ACK */
+#define EN_DYN_ACK  0x01 /* Enables the W_TX_PAYLOAD_NOACK command */
+#define RST_CFG     0x0F 
+
 
 /* P model memory Map */
 #define RPD         0x09
 
 /* P model bit Mnemonics */
-#define RF_DR_LOW   0x20
-#define RF_DR_HIGH  0x08
-#define RF_PWR_LOW  1
-#define RF_PWR_HIGH 2
+
+

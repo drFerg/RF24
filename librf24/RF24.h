@@ -20,6 +20,8 @@
 #include "compatibility.h"
 
 typedef uint8_t bool;
+#define TRUE 1
+#define FALSE 0
 /**
  * Power Amplifier level.
  *
@@ -32,7 +34,7 @@ typedef enum { RF24_PA_MIN = 0,RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX, RF24_PA_E
  *
  * For use with setDataRate()
  */
-typedef enum { RF24_1MBPS = 0, RF24_2MBPS, RF24_250KBPS } rf24_datarate_e;
+typedef enum { RF24_1MBPS = 0, RF24_2MBPS, RF24_250KBPS, RF24_ERROR} rf24_datarate_e;
 
 /**
  * CRC Length.  How big (if any) of a CRC is included.
@@ -423,7 +425,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * @param enable Whether to enable (true) or disable (false) auto-acks
    */
-  void rf24_setAutoAck(bool enable);
+  void rf24_setAutoAckOnAll(bool enable);
 
   /**
    * Enable or disable auto-acknowlede packets on a per pipeline basis.
@@ -434,7 +436,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * @param pipe Which pipeline to modify
    * @param enable Whether to enable (true) or disable (false) auto-acks
    */
-  void rf24_setAutoAck( uint8_t pipe, bool enable ) ;
+  void rf24_setAutoAckOnPipe( uint8_t pipe, bool enable ) ;
 
   /**
    * Set Power Amplifier (PA) level to one of four levels.
@@ -593,7 +595,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * @param[out] tx_fail The send failed, too many retries (MAX_RT)
    * @param[out] rx_ready There is a message waiting to be read (RX_DS)
    */
-  void rf24_whatHappened(bool& tx_ok,bool& tx_fail,bool& rx_ready);
+  void rf24_whatHappened(bool *tx_ok, bool *tx_fail, bool *rx_ready);
 
   /**
    * Test whether there was a carrier on the line for the
