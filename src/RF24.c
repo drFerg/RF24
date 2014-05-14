@@ -177,53 +177,37 @@ uint8_t get_status() {
 }
 
 bool setDataRate(rf24_datarate_e speed) {
-  bool result = FALSE;
   uint8_t setup = read_register(RF_SETUP);
-
-  // HIGH and LOW '00' is 1Mbs - our default
   wide_band = FALSE;
-  setup &= ~(RF_DR_LOW | RF_DR_HIGH);
-  if(speed == RF24_250KBPS)
-  {
-    // Must set the RF_DR_LOW to 1; RF_DR_HIGH (used to be RF_DR) is already 0
-    // Making it '10'.
-    wide_band = FALSE;
-    setup |= RF_DR_LOW;
-  }
-  else
-  {
-    // Set 2Mbs, RF_DR (RF_DR_HIGH) is set 1
-    // Making it '01'
-    if (speed == RF24_2MBPS)
-    {
+  setup &= ~RF_DR; /* Clear DR bits i.e. 1Mbps is 00 */
+
+  switch(speed){
+    case(RF24_250KBPS): {
+      setup |= RF_DR_250K; /* Set low speed bit */
+      break;
+    }
+    case(RF24_1MBPS): break; /* Already set */
+    case(RF24_2MBPS): {
       wide_band = TRUE;
-      setup |= RF_DR_HIGH;
+      setup |= RF_DR_2M; /* Set high speed bit */
+      break;
     }
-    else
-    {
-      // 1Mbs
-      wide_band = FALSE;
-    }
+    default: return FALSE;
   }
   write_register(RF_SETUP, setup);
-
-  // Verify our result
-  if (read_register(RF_SETUP) == setup)
-  {
-    result = TRUE;
-  }
-  else
-  {
+  if (setup == read_register(RF_SETUP)) { /* Verify write */
+    return TRUE;
+  } 
+  else {
     wide_band = FALSE;
+    return FALSE;
   }
-
-  return result;
 }
 
 /****************************************************************************/
 
 rf24_datarate_e getDataRate() {
-  uint8_t dr = read_register(RF_SETUP) & (RF_DR_LOW | RF_DR_HIGH);
+  uint8_t dr = read_register(RF_SETUP) & RF_DR; /* Extract DR bits */
   switch(dr){
     case(RF_DR_250K): return RF24_1MBPS;
     case(RF_DR_1M): return RF24_250KBPS;
