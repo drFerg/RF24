@@ -15,10 +15,10 @@
  * took.
  */
 
-#include <cstdlib>
-#include <iostream>
+#include <stdlib.h>
+#include <stdio.h>
 
-#include "../RF24.h"
+#include "RF24.h"
 
 //
 // Hardware configuration
@@ -27,7 +27,6 @@
 // Set up nRF24L01 radio on SPI bus plus pins 9 & 10
 
 //RF24 radio(9,10);
-RF24 radio("/dev/spidev0.0",8000000 , 25);  //spi device, speed and CSN,only CSN is NEEDED in RPI
 
 
 // sets the role of this unit in hardware.  Connect to GND to be the 'pong' receiver
@@ -89,17 +88,16 @@ void setup(void)
   //
   // Setup and configure rf radio
   //
-
-  radio.begin();
+  rf24_init_radio("/dev/spidev0.0", 8000000, 25);  //spi device, speed and CSN,only CSN is NEEDED in RPI
 
   // optionally, increase the delay between retries & # of retries
-  radio.setRetries(15,15);
+  rf24_setRetries(15,15);
 
   // optionally, reduce the payload size.  seems to
   // improve reliability
 //  radio.setPayloadSize(8);
- radio.setChannel(0x4c);
-     radio.setPALevel(RF24_PA_MAX);
+  rf24_setChannel(0x4c);
+  rf24_setPALevel(RF24_PA_MAX);
 
   //
   // Open pipes to other nodes for communication
@@ -112,26 +110,26 @@ void setup(void)
 
   if ( role == role_ping_out )
   {
-    radio.openWritingPipe(pipes[0]);
-    radio.openReadingPipe(1,pipes[1]);
+    rf24_openWritingPipe(pipes[0]);
+    rf24_openReadingPipe(1,pipes[1]);
   }
   else
   {
-    radio.openWritingPipe(pipes[1]);
-    radio.openReadingPipe(1,pipes[0]);
+    rf24_openWritingPipe(pipes[1]);
+    rf24_openReadingPipe(1,pipes[0]);
   }
 
   //
   // Start listening
   //
 
-  radio.startListening();
+  rf24_startListening();
 
   //
   // Dump the configuration of the rf unit for debugging
   //
 
-  radio.printDetails();
+  rf24_printDetails();
 }
 
 void loop(void)
@@ -143,12 +141,12 @@ void loop(void)
   if (role == role_ping_out)
   {
     // First, stop listening so we can talk.
-    radio.stopListening();
+    rf24_stopListening();
 
     // Take the time, and send it.  This will block until complete
     unsigned long time = __millis();
     printf("Now sending %lu...",time);
-    bool ok = radio.write( &time, sizeof(unsigned long) );
+    bool ok = rf24_write( &time, sizeof(unsigned long) );
     
     if (ok)
       printf("ok...");
@@ -156,16 +154,16 @@ void loop(void)
       printf("failed.\n\r");
 
     // Now, continue listening
-    radio.startListening();
+    rf24_startListening();
 
     // Wait here until we get a response, or timeout (250ms)
     unsigned long started_waiting_at = __millis();
-    bool timeout = false;
-    while ( ! radio.available() && ! timeout ) {
+    bool timeout = FALSE;
+    while ( ! rf24_available(NULL) && ! timeout ) {
 	// by bcatalin » Thu Feb 14, 2013 11:26 am 
-	__msleep(5); //add a small delay to let radio.available to check payload
+	__msleep(5); //add a small delay to let rf24_available to check payload
       if (__millis() - started_waiting_at > 200 )
-        timeout = true;
+        timeout = TRUE;
     }
 
     // Describe the results
@@ -177,7 +175,7 @@ void loop(void)
     {
       // Grab the response, compare, and send to debugging spew
       unsigned long got_time;
-      radio.read( &got_time, sizeof(unsigned long) );
+      rf24_read( &got_time, sizeof(unsigned long) );
 
       // Spew it
       printf("Got response %lu, round-trip delay: %lu\n\r",got_time,__millis()-got_time);
@@ -185,7 +183,7 @@ void loop(void)
 
     // Try again 1s later
 //    delay(1000);
-sleep(1);
+_msleep(1000);
   }
 
   //
@@ -195,15 +193,15 @@ sleep(1);
   if ( role == role_pong_back )
   {
     // if there is data ready
-    if ( radio.available() )
+    if ( rf24_available(NULL) )
     {
       // Dump the payloads until we've gotten everything
       unsigned long got_time;
-      bool done = false;
+      bool done = FALSE;
       while (!done)
       {
         // Fetch the payload, and see if this was the last one.
-        done = radio.read( &got_time, sizeof(unsigned long) );
+        done = rf24_read( &got_time, sizeof(unsigned long) );
 
         // Spew it
         printf("Got payload %lu...",got_time);
@@ -214,14 +212,14 @@ sleep(1);
       }
 
       // First, stop listening so we can talk
-      radio.stopListening();
+      rf24_stopListening();
 
       // Send the final one back.
       printf("Sent response.\n\r");
-      radio.write( &got_time, sizeof(unsigned long) );
+      rf24_write( &got_time, sizeof(unsigned long) );
 
       // Now, resume listening so we catch the next packets.
-      radio.startListening();
+      rf24_startListening();
     }
   }
 }

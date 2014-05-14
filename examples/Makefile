@@ -14,12 +14,17 @@
 prefix := /opt/librf24-examples
 
 # The recommended compiler flags for the Raspberry Pi
-CCFLAGS=-Wall -Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s
-#CCFLAGS=
 
+
+CCFLAGS= -Wall -W -fPIC
+CFLAGS= -Wall -W -fPIC
+# make all
+ifeq ($(platform), pi)
+	CCFLAGS+=-Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s
+endif
 # define all programs
 #PROGRAMS = scanner pingtest pongtest
-PROGRAMS = rpi-hub scanner pingtest pongtest sendto_hub
+PROGRAMS = rpi-hub scanner pongtest sendto_hub
 SOURCES = ${PROGRAMS:=.cpp}
 
 all: ${PROGRAMS}
@@ -27,6 +32,9 @@ all: ${PROGRAMS}
 ${PROGRAMS}: ${SOURCES}
 #	g++ ${CCFLAGS} -Wall -L../librf24/  -lrf24 $@.cpp -o $@
 	g++ ${CCFLAGS} -L../librf24/  -lrf24 $@.cpp -o $@
+
+pingtest: pingtest.c
+	gcc ${CFLAGS} -I../src/ pingtest.c -o pingtest
 
 clean:
 	rm -rf $(PROGRAMS)

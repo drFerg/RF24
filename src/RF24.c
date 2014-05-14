@@ -13,6 +13,11 @@
 #define MAX_PAYLOAD_SIZE 32
 #define SPI_BITS 8
 
+#define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
+#define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
+#define csn(_level) digitalWrite(csn_pin, _level);
+#define ce(_level) digitalWrite(ce_pin, _level);
+
 SPIState *spi;
 uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
 char *spidevice;
@@ -26,21 +31,10 @@ bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */
 uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
 uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
 /****************************************************************************/
-
-void csn(int mode) {
   // Minimum ideal SPI bus speed is 2x data rate
   // If we assume 2Mbs data rate and 16Mhz clock, a
   // divider of 4 is the minimum we want.
   // CLK:BUS 8Mhz:2Mhz, 16Mhz:4Mhz, or 20Mhz:5Mhz
-  digitalWrite(csn_pin, mode);
-}
-
-/****************************************************************************/
-
-void ce(int level) {
-  digitalWrite(ce_pin, level);
-}
-
 /****************************************************************************/
 
 uint8_t read_register_for(uint8_t reg, uint8_t* buf, uint8_t len) {
@@ -217,7 +211,7 @@ rf24_datarate_e getDataRate() {
 
 /****************************************************************************/
 
-void setPALevel(rf24_pa_dbm_e level) {
+void rf24_setPALevel(rf24_pa_dbm_e level) {
   uint8_t setup = read_register(RF_SETUP) & ~RF_PWR; /* Clear RF_PWR bits */
   switch(level){
     case(RF24_PA_MIN): break; /* Already set */
@@ -276,11 +270,12 @@ bool isPVariant() {
   return p_variant;
 }
 
-
 /****************************************************************************/
+
 void rf24_setRetries(uint8_t delay, uint8_t count) {
  write_register(SETUP_RETR, (delay&0xf)<<ARD | (count&0xf)<<ARC);
 }
+
 /****************************************************************************/
 
 void print_status(uint8_t status) {
@@ -333,12 +328,7 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
 
 /****************************************************************************/
 
-// rf24_RF24(string _spidevice, uint32_t _spispeed, uint8_t _cepin):
-// spidevice(_spidevice) , spispeed(_spispeed), ce_pin(_cepin), wide_band(TRUE), p_variant(FALSE), 
-//   payload_size(32), ack_payload_available(FALSE), dynamic_payloads_enabled(FALSE), 
-//   pipe0_reading_address(0) {
 
-// }
 // **************************************************************************
 
 // rf24_RF24(uint8_t _cepin, uint8_t _cspin):
@@ -349,7 +339,7 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
 
 /****************************************************************************/
 
-void setChannel(uint8_t channel) {
+void rf24_setChannel(uint8_t channel) {
   // TODO: This method could take advantage of the 'wide_band' calculation
   // done in setChannel() to require certain channel spacing.
   write_register(RF_CH, (channel < MAX_CHANNEL ? channel : MAX_CHANNEL));
@@ -430,20 +420,27 @@ void rf24_printDetails() {
 
 /****************************************************************************/
 
-void rf24_begin() {
+// rf24_RF24(string _spidevice, uint32_t _spispeed, uint8_t _cepin):
+// spidevice(_spidevice) , spispeed(_spispeed), ce_pin(_cepin), wide_band(TRUE), p_variant(FALSE), 
+//   payload_size(32), ack_payload_available(FALSE), dynamic_payloads_enabled(FALSE), 
+//   pipe0_reading_address(0) {
+
+// }
+
+
+uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Initialize pins
+  spidevice = spi_device;
+  spispeed = spi_speed;
+  ce_pin = cepin;
   pinMode(ce_pin, OUTPUT);
 
-  if (strncmp(spidevice, "/dev/spidev0.1", 14) == 0) {
-  	csn_pin=9;
-  } else {
-  	csn_pin=8;
-  }
+  csn_pin = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
   pinMode(csn_pin, OUTPUT);
 
     // Initialize SPI bus
   spi = spi_init(spidevice, 0, SPI_BITS, spispeed);
-
+  if (spi == NULL) return 0;
   ce(LOW);
   csn(HIGH);
 
@@ -464,7 +461,7 @@ void rf24_begin() {
   write_register(SETUP_RETR, (0b0101 << ARD) | (0b1111 << ARC));
 
   // Restore our default PA level
-  setPALevel(RF24_PA_MAX);
+  rf24_setPALevel(RF24_PA_MAX);
 
   // Determine if this is a p or non-p RF24 module and then
   // reset our data rate back to default value. This works
@@ -492,11 +489,12 @@ void rf24_begin() {
   // Set up default configuration.  Callers can always change it later.
   // This channel should be universally safe and not bleed over into adjacent
   // spectrum.
-  setChannel(76);
+  rf24_setChannel(76);
 
   // Flush buffers
   flush_rx();
   flush_tx();
+  return 1;
 }
 
 /****************************************************************************/
@@ -553,8 +551,8 @@ void rf24_powerUp() {
 void startWrite(const void* buf, uint8_t len) {
   // Transmitter power-up
   write_register(CONFIG, ((read_register(CONFIG) | PWR_UP) & ~PRIM_RX));
-// Adjustments as per gcopeland fork  
-// delayMicroseconds(150);
+  // Adjustments as per gcopeland fork  
+  // delayMicroseconds(150);
 
   // Send the payload
   write_payload(buf, len);
@@ -624,42 +622,28 @@ uint8_t rf24_getDynamicPayloadSize() {
 
 bool rf24_available(uint8_t* pipe_num) {
   uint8_t status = get_status();
-
-  // Too noisy, enable if you really want lots o data!!
-  //IF_SERIAL_DEBUG(print_status(status));
-
   bool result = (status & RX_DR);
 
-  if (result)
-  {
+  if (result) {
     // If the caller wants the pipe number, include that
-    if (pipe_num)
-      *pipe_num = (status >> RX_P_NO) & 0b111;
+    if (pipe_num) *pipe_num = (status & RX_P_NO);
 
     // Clear the status bit
-
     // ??? Should this REALLY be cleared now?  Or wait until we
     // actually READ the payload?
-
     write_register(STATUS, RX_DR);
 
     // Handle ack payload receipt
-    if (status & TX_DS)
-    {
-      write_register(STATUS, TX_DS);
-    }
+    if (status & TX_DS) write_register(STATUS, TX_DS);
   }
-
   return result;
 }
 
 /****************************************************************************/
 
 bool rf24_read(void* buf, uint8_t len) {
-  // Fetch the payload
-  read_payload(buf, len);
-  // was this the last of the data available?
-  return read_register(FIFO_STATUS) & RX_EMPTY;
+  read_payload(buf, len); /* Fetch the payload */
+  return is_rx_fifo_empty();
 }
 
 /****************************************************************************/

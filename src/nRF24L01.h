@@ -130,7 +130,7 @@
 #define RX_DR       0x20 /* Data ready in RX FIFO */
 #define TX_DS       0x10 /* Transmit data sent, packet has been tx */ 
 #define MAX_RT      0x04 /* Maximum number of re-tx */
-#define RX_P_NO     0x02 /* Data pipe num of packet available in RX FIFO */
+#define RX_P_NO     0x0E /* Data pipe num of packet available in RX FIFO */
 #define TX_FIFO_FULL 0x01 /* TX FIFO full */
 
 /* OBSERVE_TX register bit fields */

@@ -217,7 +217,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * Call this in setup(), before calling any other methods.
    */
-  void rf24_begin();
+  uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin);
 
  /**
    * Reset confguration of the chip
