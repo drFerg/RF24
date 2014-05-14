@@ -41,36 +41,36 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed) {
 	}
 
 	/* spi mode */
-	ret = ioctl(spi->fd, SPI_IOC_WR_MODE, spi->mode);
+	ret = ioctl(spi->fd, SPI_IOC_WR_MODE, &(spi->mode));
 	if (ret == -1) {
-		perror("ERROR: Can't set spi mode");
+		perror("ERROR: Can't set spi wr mode");
 		return NULL;		
 	}
-	ret = ioctl(spi->fd, SPI_IOC_RD_MODE, spi->mode);
+	ret = ioctl(spi->fd, SPI_IOC_RD_MODE, &(spi->mode));
 	if (ret == -1) {
-		perror("ERROR: Can't set spi mode");
+		perror("ERROR: Can't set spi rd mode");
 		return NULL;				
 	}
 	
 	/* bits per word */
-	ret = ioctl(spi->fd, SPI_IOC_WR_BITS_PER_WORD, spi->bits);
+	ret = ioctl(spi->fd, SPI_IOC_WR_BITS_PER_WORD, &(spi->bits));
 	if (ret == -1) {
 		perror("ERROR: Can't set bits per word");
 		return NULL;				
 	}
-	ret = ioctl(spi->fd, SPI_IOC_RD_BITS_PER_WORD, spi->bits);
+	ret = ioctl(spi->fd, SPI_IOC_RD_BITS_PER_WORD, &(spi->bits));
 	if (ret == -1) {
 		perror("ERROR: Can't set bits per word");
 		return NULL;						
 	}
 
 	/* max speed hz */
-	ret = ioctl(spi->fd, SPI_IOC_WR_MAX_SPEED_HZ, spi->speed);
+	ret = ioctl(spi->fd, SPI_IOC_WR_MAX_SPEED_HZ, &(spi->speed));
 	if (ret == -1) {
 		perror("ERROR: Can't set max speed hz");
 		return NULL;						
 	}
-	ret = ioctl(spi->fd, SPI_IOC_RD_MAX_SPEED_HZ, spi->speed);
+	ret = ioctl(spi->fd, SPI_IOC_RD_MAX_SPEED_HZ, &(spi->speed));
 	if (ret == -1) {
 		perror("ERROR: Can't set max speed hz");
 		return NULL;						
