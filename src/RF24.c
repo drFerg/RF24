@@ -169,7 +169,7 @@ uint8_t get_status() {
   return status;
 }
 
-bool setDataRate(rf24_datarate_e speed) {
+bool rf24_setDataRate(rf24_datarate_e speed) {
   uint8_t setup = read_register(RF_SETUP);
   wide_band = FALSE;
   setup &= ~RF_DR; /* Clear DR bits i.e. 1Mbps is 00 */
@@ -199,7 +199,7 @@ bool setDataRate(rf24_datarate_e speed) {
 
 /****************************************************************************/
 
-rf24_datarate_e getDataRate() {
+rf24_datarate_e rf24_getDataRate() {
   uint8_t dr = read_register(RF_SETUP) & RF_DR; /* Extract DR bits */
   switch(dr){
     case(RF_DR_250K): return RF24_1MBPS;
@@ -225,7 +225,7 @@ void rf24_setPALevel(rf24_pa_dbm_e level) {
 
 /****************************************************************************/
 
-rf24_pa_dbm_e getPALevel() {
+rf24_pa_dbm_e rf24_getPALevel() {
   uint8_t power = read_register(RF_SETUP) & RF_PWR; /* Extract RF_PWR bits */
   switch(power){
     case(RF_PWR_MAX): return RF24_PA_MAX;
@@ -237,7 +237,7 @@ rf24_pa_dbm_e getPALevel() {
 
 /****************************************************************************/
 
-void setCRCLength(rf24_crclength_e length) {
+void rf24_setCRCLength(rf24_crclength_e length) {
   uint8_t config = read_register(CONFIG) & ~CRC_BITS; /* Clear CRC bits */
   switch(length){
     case(RF24_CRC_DISABLED): break; /* Already set */
@@ -250,12 +250,12 @@ void setCRCLength(rf24_crclength_e length) {
 /****************************************************************************/
 
 void rf24_disableCRC() {
-  setCRCLength(RF24_CRC_DISABLED);
+  rf24_setCRCLength(RF24_CRC_DISABLED);
 }
 
 /****************************************************************************/
 
-rf24_crclength_e getCRCLength() {
+rf24_crclength_e rf24_getCRCLength() {
   uint8_t config = read_register(CONFIG) & CRC_BITS; /* Extract CRC bits */
   switch(config){
     case(EN_CRC_8): return RF24_CRC_8;
@@ -412,10 +412,10 @@ void rf24_printDetails() {
   print_byte_register("CONFIG", CONFIG);
   print_byte_register("DYNPD/FEATURE", DYNPD);
 
-  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[getDataRate()]));
+  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
   printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[getCRCLength()]));
-  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[getPALevel()]));
+  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
+  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
 }
 
 /****************************************************************************/
@@ -467,17 +467,17 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // reset our data rate back to default value. This works
   // because a non-P variant won't allow the data rate to
   // be set to 250Kbps.
-  if(setDataRate(RF24_250KBPS))
+  if(rf24_setDataRate(RF24_250KBPS))
   {
     p_variant = TRUE;
   }
   
   // Then set the data rate to the slowest (and most reliable) speed supported by all
   // hardware.
-  setDataRate(RF24_1MBPS);
+  rf24_setDataRate(RF24_1MBPS);
 
   // Initialize CRC and request 2-byte (16bit) CRC
-  setCRCLength(RF24_CRC_16);
+  rf24_setCRCLength(RF24_CRC_16);
   
   // Disable dynamic payloads, to match dynamic_payloads_enabled setting
   write_register(DYNPD, 0);
