@@ -101,7 +101,6 @@ uint8_t write_register(uint8_t reg, uint8_t value) {
 uint8_t write_payload(const void* buf, uint8_t len) {
   uint8_t status;
   const uint8_t* current = (const uint8_t*)buf;
-
   uint8_t data_len = (len < payload_size ? len : payload_size);
   uint8_t blank_len = dynamic_payloads_enabled ? 0 : payload_size - data_len;
   
@@ -219,15 +218,13 @@ rf24_datarate_e getDataRate() {
 /****************************************************************************/
 
 void setPALevel(rf24_pa_dbm_e level) {
-  uint8_t setup = read_register(RF_SETUP);
-  setup &= ~(RF_PWR_LOW | RF_PWR_HIGH);
-
+  uint8_t setup = read_register(RF_SETUP) & ~RF_PWR; /* Clear RF_PWR bits */
   switch(level){
-    case(RF24_PA_MIN): break;
+    case(RF24_PA_MIN): break; /* Already set */
     case(RF24_PA_LOW): setup |= RF_PWR_LOW; break;
     case(RF24_PA_HIGH): setup |= RF_PWR_HIGH; break;
-    case(RF24_PA_MAX): setup |= (RF_PWR_LOW | RF_PWR_HIGH); break;
-    case(RF24_PA_ERROR): setup |= (RF_PWR_LOW | RF_PWR_HIGH); break;
+    case(RF24_PA_MAX): /* Fallthrough */
+    case(RF24_PA_ERROR): setup |= RF_PWR_MAX; break;
   }
   write_register(RF_SETUP, setup);
 }
@@ -235,9 +232,9 @@ void setPALevel(rf24_pa_dbm_e level) {
 /****************************************************************************/
 
 rf24_pa_dbm_e getPALevel() {
-  uint8_t power = read_register(RF_SETUP) & (RF_PWR_LOW | RF_PWR_HIGH);
+  uint8_t power = read_register(RF_SETUP) & RF_PWR; /* Extract RF_PWR bits */
   switch(power){
-    case(RF_PWR_LOW | RF_PWR_HIGH): return RF24_PA_MAX;
+    case(RF_PWR_MAX): return RF24_PA_MAX;
     case(RF_PWR_HIGH): return RF24_PA_HIGH;
     case(RF_PWR_LOW): return RF24_PA_LOW;
     default: return RF24_PA_MIN;
@@ -247,40 +244,30 @@ rf24_pa_dbm_e getPALevel() {
 /****************************************************************************/
 
 void setCRCLength(rf24_crclength_e length) {
-  uint8_t config = read_register(CONFIG) & ~(CRCO | EN_CRC);
-  
-  // switch uses RAM (evil!)
-  if (length == RF24_CRC_DISABLED)
-  {
-    // Do nothing, we turned it off above. 
-  }
-  else if (length == RF24_CRC_8)
-  {
-    config |= EN_CRC;
-  }
-  else
-  {
-    config |= EN_CRC;
-    config |= CRCO;
+  uint8_t config = read_register(CONFIG) & ~CRC_BITS; /* Clear CRC bits */
+  switch(length){
+    case(RF24_CRC_DISABLED): break; /* Already set */
+    case(RF24_CRC_8): config |= EN_CRC_8; break; /* Enable 8bit CRC */
+    case(RF24_CRC_16): config |= EN_CRC_16; break; /* Enable 16bit CRC */
   }
   write_register(CONFIG, config);
 }
 
 /****************************************************************************/
 
+void rf24_disableCRC() {
+  setCRCLength(RF24_CRC_DISABLED);
+}
+
+/****************************************************************************/
+
 rf24_crclength_e getCRCLength() {
-  rf24_crclength_e result = RF24_CRC_DISABLED;
-  uint8_t config = read_register(CONFIG) & (CRCO | EN_CRC);
-
-  if (config & EN_CRC)
-  {
-    if (config & CRCO)
-      result = RF24_CRC_16;
-    else
-      result = RF24_CRC_8;
+  uint8_t config = read_register(CONFIG) & CRC_BITS; /* Extract CRC bits */
+  switch(config){
+    case(EN_CRC_8): return RF24_CRC_8;
+    case(EN_CRC_16): return RF24_CRC_16;
+    default: return RF24_CRC_DISABLED;
   }
-
-  return result;
 }
 
 /****************************************************************************/
@@ -288,12 +275,7 @@ rf24_crclength_e getCRCLength() {
 bool isPVariant() {
   return p_variant;
 }
-/****************************************************************************/
 
-void rf24_disableCRC() {
-  uint8_t disable = read_register(CONFIG) & ~EN_CRC;
-  write_register(CONFIG, disable);
-}
 
 /****************************************************************************/
 void rf24_setRetries(uint8_t delay, uint8_t count) {

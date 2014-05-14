@@ -76,7 +76,10 @@
 #define MASK_RX_DR  0x20
 #define MASK_TX_DS  0x10
 #define MASK_MAX_RT 0x04
+#define CRC_BITS    0x0B /* CRC bits */
 #define EN_CRC      0x08 /* Enable CRC */
+#define EN_CRC_8    0x08
+#define EN_CRC_16   0x0B
 #define CRCO        0x03 /* CRC scheme (1 or 2 bytes) */
 #define PWR_UP      0x02 /* POWER UP OR DOWN */
 #define PRIM_RX     0x01 /* Switch modes RX/TX */
@@ -117,9 +120,10 @@
 #define RF_DR_250K  0x20
 #define RF_DR_1M    0x28
 #define RF_DR_2M    0x08
-#define RF_PWR      0x20 /* RF power output */
-#define RF_PWR_LOW  1
-#define RF_PWR_HIGH 2
+#define RF_PWR      0x06 /* RF power output */
+#define RF_PWR_LOW  0x02
+#define RF_PWR_HIGH 0x04
+#define RF_PWR_MAX  0x06
 #define LNA_HCURR   0x01 /* Setup LNA gain */
 
 /* SETUP register bit fields */
