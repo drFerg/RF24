@@ -124,7 +124,7 @@
 #define RF_CH_CMD   0x01 /* Sets frequency channel nRF24L01 operates on */
 
 /* RF_SETUP register bit fields */
-#define PLL_LOCK    0x04 /* Force PLL lock signal, TEST_ONLY */
+#define PLL_LOCK    0x10 /* Force PLL lock signal, TEST_ONLY */
 #define RF_DR       0x28 /* RF data rate */
 #define RF_DR_LOW   0x20 /* 250Kbps */
 #define RF_DR_HIGH  0x08 /* 2Mbps */

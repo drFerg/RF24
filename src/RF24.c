@@ -53,9 +53,10 @@ uint8_t read_register_for(uint8_t reg, uint8_t* buf, uint8_t len) {
 /****************************************************************************/
 
 uint8_t read_register(uint8_t reg) {
+  uint8_t result;
   csn(LOW);
   spi_transfer(spi, R_REGISTER | (REGISTER_MASK & reg), NULL);
-  uint8_t result = spi_transfer(spi, 0xff, NULL);
+  spi_transfer(spi, 0xff, &result);
   csn(HIGH);
   return result;
 }

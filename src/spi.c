@@ -105,7 +105,7 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		return 0;		
 	}
 	if (rx != NULL) memcpy(rx, rx_val, 1);
-	printf("TX: %d RX: %d\n", tx[0], rx[0]);
+	printf("TX: %d RX: %d\n", tx[0], rx_val[0]);
 	return 1;
 }
 
