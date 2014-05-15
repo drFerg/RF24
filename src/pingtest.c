@@ -32,7 +32,7 @@ void loop(void)
         rf24_read(receivePayload, len);
  
         // display payload
-        printf("Recvd pkt - len: %d : %d\n", len, receivePayload);
+        printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
     }
 }
  

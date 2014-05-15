@@ -112,7 +112,7 @@ uint8_t write_register_for(uint8_t reg, const uint8_t* buf, uint8_t len) {
 
 uint8_t write_register(uint8_t reg, uint8_t value) {
   uint8_t status;
-  printf("write_register(%02x, %02x)\r\n", reg, value);
+  /* printf("write_register(%02x, %02x)\r\n", reg, value); */
   spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
   spi_transfer(spi, value, NULL);
