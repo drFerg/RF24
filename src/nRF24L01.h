@@ -73,14 +73,14 @@
 /***** Bit Mnemonics *****/
 
 /* CONFIG register bit fields */
-#define MASK_RX_DR  0x20
-#define MASK_TX_DS  0x10
-#define MASK_MAX_RT 0x04
-#define CRC_BITS    0x0B /* CRC bits */
+#define MASK_RX_DR  0x40
+#define MASK_TX_DS  0x20
+#define MASK_MAX_RT 0x10
+#define CRC_BITS    0x0C /* CRC bits */
 #define EN_CRC      0x08 /* Enable CRC */
 #define EN_CRC_8    0x08
-#define EN_CRC_16   0x0B
-#define CRCO        0x03 /* CRC scheme (1 or 2 bytes) */
+#define EN_CRC_16   0x0C
+#define CRCO        0x04 /* CRC scheme (1 or 2 bytes) */
 #define PWR_UP      0x02 /* POWER UP OR DOWN */
 #define PRIM_RX     0x01 /* Switch modes RX/TX */
 
@@ -138,9 +138,9 @@
 #define LNA_HCURR   0x01 /* Setup LNA gain */
 
 /* SETUP register bit fields */
-#define RX_DR       0x20 /* Data ready in RX FIFO */
-#define TX_DS       0x10 /* Transmit data sent, packet has been tx */ 
-#define MAX_RT      0x04 /* Maximum number of re-tx */
+#define RX_DR       0x40 /* Data ready in RX FIFO */
+#define TX_DS       0x20 /* Transmit data sent, packet has been tx */ 
+#define MAX_RT      0x10 /* Maximum number of re-tx */
 #define RX_P_NO     0x0E /* Data pipe num of packet available in RX FIFO */
 #define TX_FIFO_FULL 0x01 /* TX FIFO full */
 
