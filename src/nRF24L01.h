@@ -172,10 +172,5 @@
 #define EN_DYN_ACK  0x01 /* Enables the W_TX_PAYLOAD_NOACK command */
 #define RST_CFG     0x0F 
 
-
 /* P model memory Map */
 #define RPD         0x01
-
-/* P model bit Mnemonics */
-
-
