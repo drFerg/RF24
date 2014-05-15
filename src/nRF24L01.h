@@ -137,7 +137,7 @@
 #define RF_PWR_MAX  0x06
 #define LNA_HCURR   0x01 /* Setup LNA gain */
 
-/* SETUP register bit fields */
+/* STATUS register bit fields */
 #define RX_DR       0x40 /* Data ready in RX FIFO */
 #define TX_DS       0x20 /* Transmit data sent, packet has been tx */ 
 #define MAX_RT      0x10 /* Maximum number of re-tx */
@@ -145,36 +145,36 @@
 #define TX_FIFO_FULL 0x01 /* TX FIFO full */
 
 /* OBSERVE_TX register bit fields */
-#define PLOS_CNT    0x04 /* Count loss packets, caps at 15 */
-#define ARC_CNT     0x01 /* Count re-tx packets, resets when tx new packet */
+#define PLOS_CNT    0xF0 /* Count loss packets, caps at 15 */
+#define ARC_CNT     0x0F /* Count re-tx packets, resets when tx new packet */
 
 /* CD register bit fields */
 #define CD_CMD      0x01 /* Carrier Detect */
 
 /* FIFO_STATUS register bit fields */
-#define TX_REUSE    0x20 /* Reuse last TX packet */
-#define TX_FULL     0x10 /* TX FIFO full */
-#define TX_EMPTY    0x04 /* TX FIFO empty */
+#define TX_REUSE    0x40 /* Reuse last TX packet */
+#define TX_FULL     0x20 /* TX FIFO full */
+#define TX_EMPTY    0x10 /* TX FIFO empty */
 #define RX_FULL     0x02 /* RX FIFO full */
 #define RX_EMPTY    0x01 /* RX FIFO empty */
 
 /* DYNPD register bit fields */
-#define DPL_P5	    0x10 /* Enable Dynamic Payload Length in pipe PX */
-#define DPL_P4	    0x04 /* ^ */
+#define DPL_P5	    0x20 /* Enable Dynamic Payload Length in pipe PX */
+#define DPL_P4	    0x10 /* ^ */
 #define DPL_P3	    0x08 /* ^ */
-#define DPL_P2	    0x03 /* ^ */
+#define DPL_P2	    0x04 /* ^ */
 #define DPL_P1	    0x02 /* ^ */
 #define DPL_P0	    0x01 /* ^ */
 
 /* FEATURE register bit fields */
-#define EN_DPL	    0x03 /* Enables Dynamic Payload Length */
+#define EN_DPL	    0x04 /* Enables Dynamic Payload Length */
 #define EN_ACK_PAY  0x02 /* Enables Payload with ACK */
 #define EN_DYN_ACK  0x01 /* Enables the W_TX_PAYLOAD_NOACK command */
 #define RST_CFG     0x0F 
 
 
 /* P model memory Map */
-#define RPD         0x09
+#define RPD         0x01
 
 /* P model bit Mnemonics */
 
