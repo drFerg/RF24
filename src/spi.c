@@ -11,7 +11,7 @@
 #include "gpio.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-#define SET_SPI(_spi, _mode, _bits, _speed) do {\
+#define SET_SPI(_spi, _mode, _bits, _speed, _chip_select) do {\
 	_spi->mode = _mode;\
 	_spi->bits = _bits;\
 	_spi->speed = _speed;\
@@ -80,7 +80,7 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed, ui
 		return NULL;						
 	}
 	gpio_open(spi->chip_select, GPIO_OUT);
-	spi_end_transfer(spi); /* Ensures chip select is pulled up */
+	spi_disable(spi); /* Ensures chip select is pulled up */
 	return spi;
 }
 
@@ -118,7 +118,7 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 }
 
 void spi_disable(SPIState *spi){
-	gpio_write(_spi->chip_select, GPIO_HIGH);
+	gpio_write(spi->chip_select, GPIO_HIGH);
 }
 
 void spi_close(SPIState *spi){
