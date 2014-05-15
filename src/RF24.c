@@ -146,12 +146,15 @@ uint8_t read_payload(void* buf, uint8_t len) {
   uint8_t data_len = (len < payload_size ? len : payload_size);
   uint8_t blank_len = (dynamic_payloads_enabled ? 0 : payload_size - data_len);
   
-  //printf("[Reading %u bytes %u blanks]", data_len, blank_len);
+  printf("[Reading %u bytes %u blanks]", data_len, blank_len);
   
   spi_enable(spi);
   spi_transfer(spi, R_RX_PAYLOAD, &status);
-  while (data_len--)
-    spi_transfer(spi, 0xff, current++); /* originally *current++ = spi_transfer... */
+  while (data_len--){
+    spi_transfer(spi, 0xff, current); /* originally *current++ = spi_transfer... */
+    printf("test:%u\n", (uint8_t)current[0]);
+    current++;
+  }
   while (blank_len--)
     spi_transfer(spi, 0xff, NULL);
   spi_disable(spi);
@@ -610,6 +613,7 @@ void rf24_enableDynamicPayloads() {
   write_register(DYNPD, (read_register(DYNPD) | DPL_P5 | DPL_P4 | DPL_P3 | DPL_P2 | DPL_P1 | DPL_P0));
 
   dynamic_payloads_enabled = TRUE;
+  payload_size = 32;
 }
 
 void rf24_enableAckPayload() {
