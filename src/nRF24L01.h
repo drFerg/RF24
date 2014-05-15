@@ -129,7 +129,7 @@
 #define RF_DR_LOW   0x20 /* 250Kbps */
 #define RF_DR_HIGH  0x08 /* 2Mbps */
 #define RF_DR_250K  0x20
-#define RF_DR_1M    0x28
+#define RF_DR_1M    0x00
 #define RF_DR_2M    0x08
 #define RF_PWR      0x06 /* RF power output */
 #define RF_PWR_LOW  0x02

@@ -203,8 +203,8 @@ bool rf24_setDataRate(rf24_datarate_e speed) {
 rf24_datarate_e rf24_getDataRate() {
   uint8_t dr = read_register(RF_SETUP) & RF_DR; /* Extract DR bits */
   switch(dr){
-    case(RF_DR_250K): return RF24_1MBPS;
-    case(RF_DR_1M): return RF24_250KBPS;
+    case(RF_DR_250K): return RF24_250KBPS;
+    case(RF_DR_1M): return RF24_1MBPS;
     case(RF_DR_2M): return RF24_2MBPS;
     default: return RF24_ERROR;
   }
