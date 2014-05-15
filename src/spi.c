@@ -8,12 +8,14 @@
 #include <inttypes.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
+#include "gpio.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #define SET_SPI(_spi, _mode, _bits, _speed) do {\
 	_spi->mode = _mode;\
 	_spi->bits = _bits;\
 	_spi->speed = _speed;\
+	_spi->chip_select = _chip_select;\
 } while (0)
 
 //	speed = 24000000; // 24Mhz
@@ -27,13 +29,14 @@ typedef struct spi_state {
 	uint32_t mode;
 	uint8_t bits;
 	int fd;
+	uint8_t chip_select;
 } SPIState;
 
-SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed) {
+SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed, uint8_t chip_select) {
 	int ret;
 	SPIState *spi = (SPIState *) malloc(sizeof(SPIState));
 	if (spi == NULL) return NULL;
-	SET_SPI(spi, mode, bits, speed);
+	SET_SPI(spi, mode, bits, speed, chip_select);
 	printf("SPI config: mode %d, %d bit, %dMhz\n",spi->mode, spi->bits, (spi->speed)/1000000);
 	spi->fd = open(device, O_RDWR);
 	if (spi->fd < 0) {
@@ -76,7 +79,13 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed) {
 		perror("ERROR: Can't set max speed hz");
 		return NULL;						
 	}
+	gpio_open(spi->chip_select, GPIO_OUT);
+	spi_end_transfer(spi); /* Ensures chip select is pulled up */
 	return spi;
+}
+
+void spi_enable(SPIState *spi){
+	gpio_write(spi->chip_select, GPIO_LOW);
 }
 
 uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
@@ -106,6 +115,10 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 	}
 	if (rx != NULL) memcpy(rx, rx_val, 1);
 	return 1;
+}
+
+void spi_disable(SPIState *spi){
+	gpio_write(_spi->chip_select, GPIO_HIGH);
 }
 
 void spi_close(SPIState *spi){

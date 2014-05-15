@@ -88,12 +88,6 @@ typedef uint16_t prog_uint16_t;
 
 
 // Function, constant map as a result of migrating from Arduino
-#define LOW GPIO_LOW
-#define HIGH GPIO_HIGH
-#define INPUT GPIO_IN
-#define OUTPUT GPIO_OUT
-#define digitalWrite(pin, value) gpio_write(pin, value)
-#define pinMode(pin, direction) gpio_open(pin, direction)
 #define delay(milisec) __msleep(milisec)
 #define delayMicroseconds(usec) __usleep(usec)
 

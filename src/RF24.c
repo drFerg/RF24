@@ -15,14 +15,14 @@
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
-#define csn(_level) digitalWrite(csn_pin, _level);
-#define ce(_level) digitalWrite(ce_pin, _level);
+#define csn(_level) gpio_write(chip_select, _level);
+#define ce(_level) gpio_write(enable_pin, _level);
 
 SPIState *spi;
-uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
+uint8_t enable_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
 char *spidevice;
 uint32_t spispeed;
-uint8_t csn_pin; /**< SPI Chip select */
+uint8_t chip_select; /**< SPI Chip select */
 bool wide_band; /* 2Mbs data rate in use? */
 bool p_variant; /* False for RF24L01 and TRUE for RF24L01P */
 uint8_t payload_size; /**< Fixed size of payloads */
@@ -40,12 +40,12 @@ uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
 uint8_t read_register_for(uint8_t reg, uint8_t* buf, uint8_t len) {
   uint8_t status;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, R_REGISTER | (REGISTER_MASK & reg), &status);
   while (len--)
     *buf++ = spi_transfer(spi, 0xff, NULL);
 
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -54,10 +54,10 @@ uint8_t read_register_for(uint8_t reg, uint8_t* buf, uint8_t len) {
 
 uint8_t read_register(uint8_t reg) {
   uint8_t result;
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, R_REGISTER | (REGISTER_MASK & reg), NULL);
   spi_transfer(spi, 0xff, &result);
-  csn(HIGH);
+  spi_disable(spi);
   return result;
 }
 
@@ -66,12 +66,12 @@ uint8_t read_register(uint8_t reg) {
 uint8_t write_register_for(uint8_t reg, const uint8_t* buf, uint8_t len) {
   uint8_t status;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
   while (len--)
     spi_transfer(spi, *buf++, NULL);
 
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -83,10 +83,10 @@ uint8_t write_register(uint8_t reg, uint8_t value) {
 
   printf("write_register(%02x, %02x)\r\n", reg, value);
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
   spi_transfer(spi, value, NULL);
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -101,13 +101,13 @@ uint8_t write_payload(const void* buf, uint8_t len) {
   
   //printf("[Writing %u bytes %u blanks]", data_len, blank_len);
   
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, W_TX_PAYLOAD, &status);
   while (data_len--)
     spi_transfer(spi, *current++, NULL);
   while (blank_len--)
     spi_transfer(spi, 0, NULL);
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -123,13 +123,13 @@ uint8_t read_payload(void* buf, uint8_t len) {
   
   //printf("[Reading %u bytes %u blanks]", data_len, blank_len);
   
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, R_RX_PAYLOAD, &status);
   while (data_len--)
     spi_transfer(spi, 0xff, current++); /* originally *current++ = spi_transfer... */
   while (blank_len--)
     spi_transfer(spi, 0xff, NULL);
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -139,9 +139,9 @@ uint8_t read_payload(void* buf, uint8_t len) {
 uint8_t flush_rx() {
   uint8_t status;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, FLUSH_RX, &status);
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -151,9 +151,9 @@ uint8_t flush_rx() {
 uint8_t flush_tx() {
   uint8_t status;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, FLUSH_TX, &status);
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -163,9 +163,9 @@ uint8_t flush_tx() {
 uint8_t get_status() {
   uint8_t status;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, NOP, &status);
-  csn(HIGH);
+  spi_disable(spi);
 
   return status;
 }
@@ -216,8 +216,8 @@ void rf24_setPALevel(rf24_pa_dbm_e level) {
   uint8_t setup = read_register(RF_SETUP) & ~RF_PWR; /* Clear RF_PWR bits */
   switch(level){
     case(RF24_PA_MIN): break; /* Already set */
-    case(RF24_PA_LOW): setup |= RF_PWR_LOW; break;
-    case(RF24_PA_HIGH): setup |= RF_PWR_HIGH; break;
+    case(RF24_PA_GPIO_LOW): setup |= RF_PWR_GPIO_LOW; break;
+    case(RF24_PA_GPIO_HIGH): setup |= RF_PWR_GPIO_HIGH; break;
     case(RF24_PA_MAX): /* Fallthrough */
     case(RF24_PA_ERROR): setup |= RF_PWR_MAX; break;
   }
@@ -230,8 +230,8 @@ rf24_pa_dbm_e rf24_getPALevel() {
   uint8_t power = read_register(RF_SETUP) & RF_PWR; /* Extract RF_PWR bits */
   switch(power){
     case(RF_PWR_MAX): return RF24_PA_MAX;
-    case(RF_PWR_HIGH): return RF24_PA_HIGH;
-    case(RF_PWR_LOW): return RF24_PA_LOW;
+    case(RF_PWR_GPIO_HIGH): return RF24_PA_GPIO_HIGH;
+    case(RF_PWR_GPIO_LOW): return RF24_PA_GPIO_LOW;
     default: return RF24_PA_MIN;
   }
 }
@@ -333,7 +333,7 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
 // **************************************************************************
 
 // rf24_RF24(uint8_t _cepin, uint8_t _cspin):
-//   ce_pin(_cepin), csn_pin(_cspin), wide_band(TRUE), p_variant(FALSE), 
+//   enable_pin(_cepin), csn_pin(_cspin), wide_band(TRUE), p_variant(FALSE), 
 //   payload_size(32), ack_payload_available(FALSE), dynamic_payloads_enabled(FALSE), 
 //   pipe0_reading_address(0) {
 // }
@@ -383,8 +383,8 @@ static const char * const rf24_crclength_e_str_P[] PROGMEM = {
   rf24_crclength_e_str_2, 
 };
 static const char rf24_pa_dbm_e_str_0[] PROGMEM = "PA_MIN";
-static const char rf24_pa_dbm_e_str_1[] PROGMEM = "PA_LOW";
-static const char rf24_pa_dbm_e_str_2[] PROGMEM = "PA_HIGH";
+static const char rf24_pa_dbm_e_str_1[] PROGMEM = "PA_GPIO_LOW";
+static const char rf24_pa_dbm_e_str_2[] PROGMEM = "PA_GPIO_HIGH";
 static const char rf24_pa_dbm_e_str_3[] PROGMEM = "PA_MAX";
 static const char * const rf24_pa_dbm_e_str_P[] PROGMEM = { 
   rf24_pa_dbm_e_str_0, 
@@ -397,8 +397,11 @@ void rf24_printDetails() {
 
   printf("SPI device\t = %s\r\n", spidevice);
   printf("SPI speed\t = %d\r\n", spispeed);
-  printf("CE GPIO\t = %d\r\n", ce_pin);
-	
+  printf("CE GPIO\t = %d\r\n", enable_pin);
+	printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
+  printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
+  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
+  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
   print_status(get_status());
 
   print_address_register("RX_ADDR_P0-1", RX_ADDR_P0, 2);
@@ -413,16 +416,13 @@ void rf24_printDetails() {
   print_byte_register("CONFIG", CONFIG);
   print_byte_register("DYNPD/FEATURE", DYNPD);
 
-  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
-  printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
-  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
+  
 }
 
 /****************************************************************************/
 
 // rf24_RF24(string _spidevice, uint32_t _spispeed, uint8_t _cepin):
-// spidevice(_spidevice) , spispeed(_spispeed), ce_pin(_cepin), wide_band(TRUE), p_variant(FALSE), 
+// spidevice(_spidevice) , spispeed(_spispeed), enable_pin(_cepin), wide_band(TRUE), p_variant(FALSE), 
 //   payload_size(32), ack_payload_available(FALSE), dynamic_payloads_enabled(FALSE), 
 //   pipe0_reading_address(0) {
 
@@ -433,18 +433,16 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Initialize pins
   spidevice = spi_device;
   spispeed = spi_speed;
-  ce_pin = cepin;
-  pinMode(ce_pin, OUTPUT);
+  enable_pin = cepin;
+  chip_select = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
+  gpio_open(enable_pin, GPIO_OUT);
 
-  csn_pin = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
-  pinMode(csn_pin, OUTPUT);
 
     // Initialize SPI bus
-  spi = spi_init(spidevice, 0, SPI_BITS, spispeed);
+  spi = spi_init(spidevice, 0, SPI_BITS, spispeed, chip_select);
   if (spi == NULL) return 0;
-  ce(LOW);
-  csn(HIGH);
-
+  ce(GPIO_LOW);
+  
   // Must allow the radio time to settle else configuration bits will not necessarily stick.
   // This is actually only required following power up but some settling time also appears to
   // be required after resets too. For full coverage, we'll always assume the worst.
@@ -520,7 +518,7 @@ void rf24_startListening() {
   //flush_tx();
 
   // Go!
-  ce(HIGH);
+  ce(GPIO_HIGH);
 
   // wait for the radio to come up (130us actually only needed)
   delayMicroseconds(130);
@@ -529,7 +527,7 @@ void rf24_startListening() {
 /****************************************************************************/
 
 void rf24_stopListening() {
-  ce(LOW);
+  ce(GPIO_LOW);
   flush_tx();
   flush_rx();
 }
@@ -559,9 +557,9 @@ void startWrite(const void* buf, uint8_t len) {
   write_payload(buf, len);
 
   // Allons!
-  ce(HIGH);
+  ce(GPIO_HIGH);
   delayMicroseconds(10);
-  ce(LOW);
+  ce(GPIO_LOW);
 }
 /******************************************************************/
 
@@ -611,10 +609,10 @@ bool rf24_write(const void* buf, uint8_t len) {
 uint8_t rf24_getDynamicPayloadSize() {
   uint8_t result = 0;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, R_RX_PL_WID, NULL);
   spi_transfer(spi, 0xff, &result);
-  csn(HIGH);
+  spi_disable(spi);
 
   return result;
 }
@@ -711,10 +709,10 @@ void rf24_openReadingPipe(uint8_t child, uint64_t address) {
 /****************************************************************************/
 
 void toggle_features() {
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, ACTIVATE, NULL);
   spi_transfer(spi, ACTIVATE_2, NULL);
-  csn(HIGH);
+  spi_disable(spi);
 }
 
 /****************************************************************************/
@@ -773,14 +771,14 @@ void rf24_enableAckPayload() {
 void rf24_writeAckPayload(uint8_t pipe, const void* buf, uint8_t len) {
   const uint8_t* current = (const uint8_t*)buf;
 
-  csn(LOW);
+  spi_enable(spi);
   spi_transfer(spi, W_ACK_PAYLOAD | (pipe & 0b111), NULL);
   const uint8_t max_payload_size = 32;
   uint8_t data_len = (len < max_payload_size ? len : max_payload_size);
   while (data_len--)
     spi_transfer(spi, *current++, NULL);
 
-  csn(HIGH);
+  spi_disable(spi);
 }
 
 /****************************************************************************/
