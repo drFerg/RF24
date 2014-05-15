@@ -142,19 +142,14 @@ uint8_t write_payload(const void* buf, uint8_t len) {
 uint8_t read_payload(void* buf, uint8_t len) {
   uint8_t status;
   uint8_t* current = (uint8_t*)buf;
-
   uint8_t data_len = (len < payload_size ? len : payload_size);
   uint8_t blank_len = (dynamic_payloads_enabled ? 0 : payload_size - data_len);
   
-  printf("[Reading %u bytes %u blanks]", data_len, blank_len);
+  /*printf("[Reading %u bytes %u blanks]", data_len, blank_len);*/
   
   spi_enable(spi);
   spi_transfer(spi, R_RX_PAYLOAD, &status);
-  while (data_len--){
-    spi_transfer(spi, 0xff, current); /* originally *current++ = spi_transfer... */
-    printf("test:%u\n", (uint8_t)current[0]);
-    current++;
-  }
+  while (data_len--) spi_transfer(spi, 0xff, current++);
   while (blank_len--)
     spi_transfer(spi, 0xff, NULL);
   spi_disable(spi);
@@ -341,7 +336,7 @@ void rf24_printDetails() {
   printf("SPI device\t = %s\r\n", spidevice);
   printf("SPI speed\t = %d\r\n", spispeed);
   printf("CE GPIO\t = %d\r\n", enable_pin);
-	printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
+  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
   printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
   printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
   printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
@@ -426,7 +421,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
 
 
 void rf24_resetcfg(){
-	write_register(CONFIG, RST_CFG);
+  write_register(CONFIG, RST_CFG);
 }
 
 void rf24_startListening() {
