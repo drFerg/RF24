@@ -80,7 +80,7 @@ uint8_t write_register_for(uint8_t reg, const uint8_t* buf, uint8_t len) {
 uint8_t write_register(uint8_t reg, uint8_t value) {
   uint8_t status;
 
-  IF_SERIAL_DEBUG(printf("write_register(%02x, %02x)\r\n", reg, value));
+  printf("write_register(%02x, %02x)\r\n", reg, value);
 
   csn(LOW);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
@@ -458,7 +458,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Set 1500uS (minimum for 32B payload in ESB@250KBPS) timeouts, to make testing a little easier
   // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet
   // sizes must never be used. See documentation for a more complete explanation.
-  write_register(SETUP_RETR, (0b0101 << ARD) | (0b1111 << ARC));
+  write_register(SETUP_RETR, ARD_1500u | ARC_15);
 
   // Restore our default PA level
   rf24_setPALevel(RF24_PA_MAX);

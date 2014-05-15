@@ -107,7 +107,18 @@
 
 /* SETUP_RETR register bit fields */
 #define ARD         0x10 /* Auto re-tx delay */
+#define ARD_250u    0x00
+#define ARD_500u    0x10
+#define ARD_750u    0x20
+#define ARD_1000u   0x40
+#define ARD_1250u   0x80
+#define ARD_1500u   0x50
+#define ARD_2000u   0xA0
+#define ARD_4000u   0xF0
 #define ARC         0x01 /* Auto re-tx count */
+#define ARC_5       0x05
+#define ARC_10      0x0A
+#define ARC_15      0x0F
 
 /* RF_CH register bit fields */
 #define RF_CH_CMD   0x01 /* Sets frequency channel nRF24L01 operates on */

@@ -6,10 +6,10 @@ void setup(void)
 {
     // init radio for reading
   // spi device, spi speed, ce gpio pin
-    uint8_t status = rf24_init_radio("/dev/spidev0.0",8000000,25);
+    uint8_t status = rf24_init_radio("/dev/spidev0.0", 8000000, 25);
     if (status == 0) exit(-1);
     rf24_enableDynamicPayloads();
-    rf24_setAutoAckOnPipe(1, 1);
+    rf24_setAutoAckOnPipe(1, 0);
     rf24_setRetries(15,15);
     rf24_setDataRate(RF24_1MBPS);
     rf24_setPALevel(RF24_PA_MAX);
@@ -17,6 +17,7 @@ void setup(void)
     rf24_setCRCLength(RF24_CRC_16);
     rf24_openReadingPipe(1,0xF0F0F0F0E1LL);
     rf24_startListening();
+    rf24_printDetails();
 }
  
 void loop(void)
@@ -31,7 +32,7 @@ void loop(void)
         rf24_read(receivePayload, len);
  
         // display payload
-        printf("Recvd: %s\n", receivePayload);
+        printf("Recvd pkt\n\t len:%d\n\t: %s\n", len, receivePayload);
     }
 }
  

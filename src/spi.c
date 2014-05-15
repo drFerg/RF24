@@ -34,6 +34,7 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed) {
 	SPIState *spi = (SPIState *) malloc(sizeof(SPIState));
 	if (spi == NULL) return NULL;
 	SET_SPI(spi, mode, bits, speed);
+	printf("SPI config: mode %d, %d bit, %dMhz\n",spi->mode, spi->bits, (spi->speed)/1000000);
 	spi->fd = open(device, O_RDWR);
 	if (spi->fd < 0) {
 		perror("ERROR: Can't open SPI device");
@@ -99,12 +100,12 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 	tr.bits_per_word = spi->bits;
 
 	ret = ioctl(spi->fd, SPI_IOC_MESSAGE(1), &tr);
-	if (ret < 1)
-	{
+	if (ret < 1){
 		perror("ERROR: can't send spi message");
 		return 0;		
 	}
 	if (rx != NULL) memcpy(rx, rx_val, 1);
+	printf("TX: %d RX: %d\n", tx[0], rx[0]);
 	return 1;
 }
 
