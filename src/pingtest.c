@@ -8,7 +8,7 @@ typedef struct result {
 } Result;
 
 
-void assert(uint8_t check, uint8_t value, Result *r){
+void assert(int check, int value, Result *r){
     if (check == value){
         r->pass++;
         printf("PASS\n");
@@ -36,29 +36,29 @@ void test_power_level(Result *r){
     printf("[TEST] Performing power level tests...\n");
     printf("[TEST]\tSetting power level to min...");
     rf24_setPALevel(RF24_PA_MIN);
-    assert(RF24_PA_MIN, rf24_getPALevel, r);
+    assert(RF24_PA_MIN, rf24_getPALevel(), r);
     printf("[TEST]\tSetting power level to low...");
     rf24_setPALevel(RF24_PA_LOW);
-    assert(RF24_PA_LOW, rf24_getPALevel, r);
+    assert(RF24_PA_LOW, rf24_getPALevel(), r);
     printf("[TEST]\tSetting power level to high...");
     rf24_setPALevel(RF24_PA_HIGH);
-    assert(RF24_PA_HIGH, rf24_getPALevel, r);
+    assert(RF24_PA_HIGH, rf24_getPALevel(), r);
     printf("[TEST]\tSetting power level to max...");
     rf24_setPALevel(RF24_PA_MAX);
-    assert(RF24_PA_MAX, rf24_getPALevel, r);
+    assert(RF24_PA_MAX, rf24_getPALevel(), r);
 }
 
 void test_crc_length(Result *r){
     printf("[TEST] Performing crc tests...\n");
     printf("[TEST]\tDisabling CRC...");
     rf24_setCRCLength(RF24_CRC_DISABLED);
-    assert(RF24_CRC_DISABLED, rf24_getCRCLength, r);
+    assert(RF24_CRC_DISABLED, rf24_getCRCLength(), r);
     printf("[TEST]\tSetting CRC length to 8bits...");
     rf24_setCRCLength(RF24_CRC_8);
-    assert(RF24_CRC_8, rf24_getCRCLength, r);
+    assert(RF24_CRC_8, rf24_getCRCLength(), r);
     printf("[TEST]\tSetting CRC length to 16bits...");
     rf24_setCRCLength(RF24_CRC_16);
-    assert(RF24_CRC_16, rf24_getCRCLength, r);
+    assert(RF24_CRC_16, rf24_getCRCLength(), r);
 }
 
 void run_test_suite(Result *r){
@@ -75,7 +75,7 @@ void run_test_suite(Result *r){
 
 void setup(void)
 {
-    Result r;
+    Result r = {.pass = 0, .fail = 0};
     // init radio for reading
   // spi device, spi speed, ce gpio pin
     uint8_t status = rf24_init_radio("/dev/spidev0.0", 8000000, 25);
