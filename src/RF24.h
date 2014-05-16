@@ -379,6 +379,9 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    */
   uint8_t rf24_getPayloadSize();
 
+  uint8_t rf24_setAddressWidth(uint8_t addr_width);
+  uint8_t rf24_getAddressWidth();
+
   /**
    * Get Dynamic Payload Size
    *

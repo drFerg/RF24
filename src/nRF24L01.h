@@ -177,3 +177,9 @@
 #define POWER_UP_DELAY 150 /* Tpd2stby - delay before CE can be set high */
 #define POWER_DOWN_DELAY 150
 #define WRITE_DELAY 10 /* Thce - Minimum delay for 1 packet to be sent */ 
+
+/* Other defines */
+#define MAX_CHANNEL 127
+#define MAX_PAYLOAD_SIZE 32
+#define MIN_ADDR_WIDTH 3
+#define MAX_ADDR_WIDTH 5

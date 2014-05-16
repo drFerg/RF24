@@ -9,10 +9,9 @@
 #include "nRF24L01.h"
 #include "RF24_config.h"
 #include "RF24.h"
-#define MAX_CHANNEL 127
-#define MAX_PAYLOAD_SIZE 32
+
 #define SPI_BITS 8
-#define ADDRESS_WIDTH 5
+#define SPI_MODE 0
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
@@ -32,6 +31,8 @@ bool ack_payload_available; /**< Whether there is an ack payload waiting */
 bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */ 
 uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
 uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
+uint8_t transmit_address[5];
+uint8_t address_width;
 /****************************************************************************/
   // Minimum ideal SPI bus speed is 2x data rate
   // If we assume 2Mbs data rate and 16Mhz clock, a
@@ -317,6 +318,16 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
   printf("\r\n");
 }
 
+uint8_t rf24_setAddressWidth(uint8_t addr_width){
+  if (addr_width > MAX_ADDR_WIDTH || addr_width < MIN_ADDR_WIDTH) return 0;
+  write_register(AW, addr_width);
+  return addr_width;
+}
+
+uint8_t rf24_getAddressWidth(){
+  return read_register(AW);
+}
+
 void rf24_setChannel(uint8_t channel) {
   // TODO: This method could take advantage of the 'wide_band' calculation
   // done in setChannel() to require certain channel spacing.
@@ -365,7 +376,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   chip_select = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
   gpio_open(enable_pin, GPIO_OUT);
 
-  spi = spi_init(spidevice, 0, SPI_BITS, spispeed, chip_select);
+  spi = spi_init(spidevice, SPI_MODE, SPI_BITS, spispeed, chip_select);
   if (spi == NULL) return 0;
   disable_radio();
 
@@ -539,8 +550,8 @@ void rf24_setAddress(uint64_t value) {
   // Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
   // expects it LSB first too, so we're good.
 
-  write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, ADDRESS_WIDTH);
-  write_register_bytes(TX_ADDR, (uint8_t*)&value, ADDRESS_WIDTH);
+  write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, address_width);
+  write_register_bytes(TX_ADDR, (uint8_t*)&value, address_width);
   write_register(RX_PW_P0, (payload_size < MAX_PAYLOAD_SIZE ? payload_size : MAX_PAYLOAD_SIZE));
 }
 

@@ -83,6 +83,8 @@ void setup(void)
   // spi device, spi speed, ce gpio pin
     uint8_t status = rf24_init_radio("/dev/spidev0.0", 8000000, 25);
     if (status == 0) exit(-1);
+    run_test_suite(&r);
+    rf24_resetcfg();
     rf24_enableDynamicPayloads();
     rf24_setAutoAckOnPipe(1, 0);
     rf24_setRetries(15,15);
@@ -90,8 +92,8 @@ void setup(void)
     rf24_setPALevel(RF24_PA_MAX);
     rf24_setChannel(76);
     rf24_setCRCLength(RF24_CRC_16);
-    rf24_openReadingPipe(1,0xF0F0F0F0E1LL);
-    run_test_suite(&r);
+    rf24_setAddressWidth(5);
+    rf24_openReadingPipe(1, 0xF0F0F0F0E1LL);
     rf24_startListening();
     rf24_printDetails();
     
