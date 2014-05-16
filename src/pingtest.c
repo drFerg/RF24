@@ -8,14 +8,16 @@ typedef struct result {
 } Result;
 
 
-void assert(int check, int value, Result *r){
+uint8_t assert(int check, int value, Result *r){
     if (check == value){
         r->pass++;
         printf("PASS\n");
+        return 1;
     }
     else{
         r->fail++;
         printf("FAIL\n");
+        return 0;
     }
 }
 
@@ -23,7 +25,8 @@ void test_data_rate(Result *r){
     printf("[TEST] Performing Data rate tests...\n");
     printf("[TEST]\tSetting data rate to 250Kbps...");
     rf24_setDataRate(RF24_250KBPS);
-    assert(RF24_250KBPS, rf24_getDataRate(), r);
+    printf("[TEST]\t> Model: %s\n", 
+        (assert(RF24_250KBPS, rf24_getDataRate(), r) ? "nRF24L01+" : "nRF24L01"));
     printf("[TEST]\tSetting data rate to 1Mbps...");
     rf24_setDataRate(RF24_1MBPS);
     assert(RF24_1MBPS, rf24_getDataRate(), r);
@@ -62,14 +65,16 @@ void test_crc_length(Result *r){
 }
 
 void run_test_suite(Result *r){
+    printf("***********************************\n");
+    printf("      nRF24L01(+) test suite\n");
     test_data_rate(r);
     test_power_level(r);
     printf("***********************************\n");
-    printf("*          Test summary           *\n");
-    printf("*                                 *\n");
-    printf("*   > Tests passed: %d            *\n", r->pass);
-    printf("*   > Tests failed: %d            *\n", r->fail);
-    printf("*                                 *\n");
+    printf("           Test summary\n");
+    printf("                     \n");
+    printf("   > Tests passed: %d\n", r->pass);
+    printf("   > Tests failed: %d\n", r->fail);
+    printf("                    \n");
     printf("***********************************\n");
 }
 
