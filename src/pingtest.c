@@ -2,8 +2,41 @@
 #include <stdio.h>
 #include "RF24.h"
 
+typedef struct result {
+    uint8_t pass;
+    uint8_t fail;
+} Result;
+
+
+void assert(uint8_t check, uint8_t value, Result *r){
+    if (check == value){
+        r->pass++;
+        printf("PASS\n");
+    }
+    else{
+        r->fail++;
+        printf("FAIL\n");
+    }
+}
+
+void test_data_rate(Result *r){
+    printf("Performing Data rate tests...\n");
+    printf("\tSetting data rate to 250Kbps...");
+    rf24_setDataRate(RF24_250KBPS);
+    assert(RF24_250KBPS, rf24_getDataRate(), r);
+    printf("\tSetting data rate to 1Mbps...");
+    rf24_setDataRate(RF24_1MBPS);
+    assert(RF24_1MBPS, rf24_getDataRate(), r);
+    printf("\tSetting data rate to 2Mbps...");
+    rf24_setDataRate(RF24_2MBPS);
+    assert(RF24_2MBPS, rf24_getDataRate(), r);
+}
+
+
+
 void setup(void)
 {
+    Result r;
     // init radio for reading
   // spi device, spi speed, ce gpio pin
     uint8_t status = rf24_init_radio("/dev/spidev0.0", 8000000, 25);
@@ -18,6 +51,7 @@ void setup(void)
     rf24_openReadingPipe(1,0xF0F0F0F0E1LL);
     rf24_startListening();
     rf24_printDetails();
+    test_data_rate(&r);
 }
  
 void loop(void)

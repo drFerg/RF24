@@ -83,7 +83,7 @@ static const uint8_t child_pipe_enable[] PROGMEM = {
 /***********************/
 /* Register functions  */
 /***********************/
-uint8_t read_register_for(uint8_t reg, uint8_t* buf, uint8_t len) {
+uint8_t read_register_bytes(uint8_t reg, uint8_t* buf, uint8_t len) {
   uint8_t status;
   spi_enable(spi);
   spi_transfer(spi, R_REGISTER | (REGISTER_MASK & reg), &status);
@@ -101,7 +101,7 @@ uint8_t read_register(uint8_t reg) {
   return result;
 }
 
-uint8_t write_register_for(uint8_t reg, const uint8_t* buf, uint8_t len) {
+uint8_t write_register_bytes(uint8_t reg, const uint8_t* buf, uint8_t len) {
   uint8_t status;
   spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
@@ -306,7 +306,7 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
   while (qty--)
   {
     uint8_t buffer[5];
-    read_register_for(reg++, buffer, sizeof(buffer));
+    read_register_bytes(reg++, buffer, sizeof(buffer));
 
     printf(" 0x");
     uint8_t* bufptr = buffer + sizeof(buffer);
@@ -429,7 +429,7 @@ void rf24_startListening() {
   write_register(STATUS, (RX_DR | TX_DS | MAX_RT));
 
   if (pipe0_reading_address) /* Restore the pipe0 adddress, if exists */
-    write_register_for(RX_ADDR_P0, (const uint8_t*)&pipe0_reading_address, 5);
+    write_register_bytes(RX_ADDR_P0, (const uint8_t*)&pipe0_reading_address, 5);
 
   enable_radio();
   // wait for the radio to come up (130us actually only needed)
@@ -479,7 +479,7 @@ bool rf24_write(const void* buf, uint8_t len) {
   const uint32_t timeout = 500; //ms to wait for timeout
   do
   {
-    status = read_register_for(OBSERVE_TX, &observe_tx, 1);
+    status = read_register_bytes(OBSERVE_TX, &observe_tx, 1);
     IF_SERIAL_DEBUG(printf("%x", observe_tx));
   }
   while(! (status & (TX_DS | MAX_RT)) && (__millis() - sent_at < timeout));
@@ -549,8 +549,8 @@ void rf24_openWritingPipe(uint64_t value) {
   // Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
   // expects it LSB first too, so we're good.
 
-  write_register_for(RX_ADDR_P0, (uint8_t*)&value, 5);
-  write_register_for(TX_ADDR, (uint8_t*)&value, 5);
+  write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, 5);
+  write_register_bytes(TX_ADDR, (uint8_t*)&value, 5);
 
   const uint8_t max_payload_size = 32;
   write_register(RX_PW_P0, (payload_size < max_payload_size ? payload_size : max_payload_size));
@@ -567,9 +567,9 @@ void rf24_openReadingPipe(uint8_t child, uint64_t address) {
   {
     // For pipes 2-5, only write the LSB
     if (child < 2)
-      write_register_for(pgm_read_byte(&child_pipe[child]), (const uint8_t*)&address, 5);
+      write_register_bytes(pgm_read_byte(&child_pipe[child]), (const uint8_t*)&address, 5);
     else
-      write_register_for(pgm_read_byte(&child_pipe[child]), (const uint8_t*)&address, 1);
+      write_register_bytes(pgm_read_byte(&child_pipe[child]), (const uint8_t*)&address, 1);
 
     write_register(pgm_read_byte(&child_payload_size[child]), payload_size);
 
