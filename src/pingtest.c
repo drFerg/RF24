@@ -68,7 +68,7 @@ void run_test_suite(Result *r){
     printf("*          Test summary           *\n");
     printf("*                                 *\n");
     printf("*   > Tests passed: %d            *\n", r->pass);
-    printf("*   > Tests failed: %d            *\n", r->failed);
+    printf("*   > Tests failed: %d            *\n", r->fail);
     printf("*                                 *\n");
     printf("***********************************\n");
 }
