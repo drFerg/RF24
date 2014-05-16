@@ -85,14 +85,14 @@
 #define PRIM_RX     0x01 /* Switch modes RX/TX */
 
 /* EN_AA Enhanced Shockburst register bit fields */
-#define ENAA_P5     0x10 /* Enable Auto-ACK in pipe PX */
-#define ENAA_P4     0x04 /* ^ */
+#define ENAA_P5     0x20 /* Enable Auto-ACK in pipe PX */
+#define ENAA_P4     0x10 /* ^ */
 #define ENAA_P3     0x08 /* ^ */
-#define ENAA_P2     0x03 /* ^ */
+#define ENAA_P2     0x04 /* ^ */
 #define ENAA_P1     0x02 /* ^ */
 #define ENAA_P0     0x01 /* ^ */
 #define ENAA_ALL    0x3F /* Enable Auto-ACK in all pipes */
-#define ENAA_NONE   0x01 /* Disable Auto-ACK in all pipes */
+#define ENAA_NONE   0x00 /* Disable Auto-ACK in all pipes */
 
 /* EN_RXADDR register bit fields */
 #define ERX_P5      0x10 /* Enable data pipe PX */
@@ -165,6 +165,7 @@
 #define DPL_P2	    0x04 /* ^ */
 #define DPL_P1	    0x02 /* ^ */
 #define DPL_P0	    0x01 /* ^ */
+#define DPL_ALL     0x3F /* ^ */
 
 /* FEATURE register bit fields */
 #define EN_DPL	    0x04 /* Enables Dynamic Payload Length */

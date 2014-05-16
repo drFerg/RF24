@@ -150,10 +150,8 @@ uint8_t read_payload(void* buf, uint8_t len) {
   spi_enable(spi);
   spi_transfer(spi, R_RX_PAYLOAD, &status);
   while (data_len--) spi_transfer(spi, 0xff, current++);
-  while (blank_len--)
-    spi_transfer(spi, 0xff, NULL);
+  while (blank_len--) spi_transfer(spi, 0xff, NULL);
   spi_disable(spi);
-
   return status;
 }
 
@@ -376,10 +374,6 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Technically we require 4.5ms + 14us as a worst case. We'll just call it 5ms for good measure.
   // WARNING: Delay is based on P-variant whereby non-P *may* require different timing.
   delay(5);
-
-  // Adjustments as per gcopeland fork  
-  //resetcfg();
-
   // Set 1500uS (minimum for 32B payload in ESB@250KBPS) timeouts, to make testing a little easier
   // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet
   // sizes must never be used. See documentation for a more complete explanation.
@@ -588,25 +582,22 @@ void toggle_features() {
 }
 
 void rf24_enableDynamicPayloads() {
-  // Enable dynamic payload throughout the system
-  write_register(FEATURE, (read_register(FEATURE) | EN_DPL));
+  /* Enable dynamic payload feature */
+  uint8_t status = read_register(FEATURE);
+  if (status & EN_DPL) return; /* Already enabled */
+  write_register(FEATURE, (status | EN_DPL));
 
   // If it didn't work, the features are not enabled
-  if (! read_register(FEATURE))
-  {
-    // So enable them and try again
-    toggle_features();
-    write_register(FEATURE, (read_register(FEATURE) | EN_DPL));
+  if (read_register(FEATURE) == NULL) {
+    toggle_features(); /* So enable them and try again */
+    status = read_register(FEATURE);
+    printf("Not activated: %u\n", status);
+    write_register(FEATURE, (status | EN_DPL));
   }
 
   IF_SERIAL_DEBUG(printf("FEATURE=%i\r\n", read_register(FEATURE)));
-
-  // Enable dynamic payload on all pipes
-  //
-  // Not sure the use case of only having dynamic payload on certain
-  // pipes, so the library does not support it.
-  write_register(DYNPD, (read_register(DYNPD) | DPL_P5 | DPL_P4 | DPL_P3 | DPL_P2 | DPL_P1 | DPL_P0));
-
+  /* Enable dynamic payloads on all pipes */
+  write_register(DYNPD, (read_register(DYNPD) | DPL_ALL));
   dynamic_payloads_enabled = TRUE;
   payload_size = 32;
 }

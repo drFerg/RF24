@@ -11,21 +11,21 @@ typedef struct result {
 uint8_t assert(int check, int value, Result *r){
     if (check == value){
         r->pass++;
-        printf("PASS\n");
+        printf("\tPASS\n");
         return 1;
     }
     else{
         r->fail++;
-        printf("FAIL\n");
+        printf("\tFAIL\n");
         return 0;
     }
 }
 
 void test_data_rate(Result *r){
-    printf("[TEST] Performing Data rate tests...\n");
+    printf("[TEST SUITE] Performing Data rate tests...\n");
     printf("[TEST]\tSetting data rate to 250Kbps...");
     rf24_setDataRate(RF24_250KBPS);
-    printf("[TEST]\t> Model: %s\n", 
+    printf("\t\t> Model: %s\n", 
         (assert(RF24_250KBPS, rf24_getDataRate(), r) ? "nRF24L01+" : "nRF24L01"));
     printf("[TEST]\tSetting data rate to 1Mbps...");
     rf24_setDataRate(RF24_1MBPS);
@@ -36,7 +36,7 @@ void test_data_rate(Result *r){
 }
 
 void test_power_level(Result *r){
-    printf("[TEST] Performing power level tests...\n");
+    printf("[TEST SUITE] Performing power level tests...\n");
     printf("[TEST]\tSetting power level to min...");
     rf24_setPALevel(RF24_PA_MIN);
     assert(RF24_PA_MIN, rf24_getPALevel(), r);
@@ -52,7 +52,7 @@ void test_power_level(Result *r){
 }
 
 void test_crc_length(Result *r){
-    printf("[TEST] Performing crc tests...\n");
+    printf("[TEST SUITE] Performing crc tests...\n");
     printf("[TEST]\tDisabling CRC...");
     rf24_setCRCLength(RF24_CRC_DISABLED);
     assert(RF24_CRC_DISABLED, rf24_getCRCLength(), r);
@@ -65,16 +65,14 @@ void test_crc_length(Result *r){
 }
 
 void run_test_suite(Result *r){
-    printf("***********************************\n");
-    printf("      nRF24L01(+) test suite\n");
+    printf("\n***********************************\n");
+    printf("      nRF24L01(+) test suite\n\n");
     test_data_rate(r);
     test_power_level(r);
     printf("***********************************\n");
-    printf("           Test summary\n");
-    printf("                     \n");
+    printf("           Test summary\n\n");
     printf("   > Tests passed: %d\n", r->pass);
-    printf("   > Tests failed: %d\n", r->fail);
-    printf("                    \n");
+    printf("   > Tests failed: %d\n\n", r->fail);
     printf("***********************************\n");
 }
 
@@ -93,9 +91,10 @@ void setup(void)
     rf24_setChannel(76);
     rf24_setCRCLength(RF24_CRC_16);
     rf24_openReadingPipe(1,0xF0F0F0F0E1LL);
+    run_test_suite(&r);
     rf24_startListening();
     rf24_printDetails();
-    run_test_suite(&r);
+    
 }
  
 void loop(void)
