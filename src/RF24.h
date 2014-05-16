@@ -605,7 +605,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * @return true if was carrier, false if not
    */
-  bool rf24_testCarrier();
+  bool rf24_testCarrierDetect();
 
   /**
    * Test whether a signal (carrier or otherwise) greater than
@@ -617,7 +617,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * @return true if signal => -64dBm, false if not
    */
-  bool rf24_testRPD() ;
+  bool rf24_testRPD();
 
 
 /**

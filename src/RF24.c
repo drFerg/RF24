@@ -12,11 +12,13 @@
 #define MAX_CHANNEL 127
 #define MAX_PAYLOAD_SIZE 32
 #define SPI_BITS 8
+#define ADDRESS_WIDTH 5
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
-#define enable_radio() gpio_write(enable_pin, GPIO_HIGH);
+#define enable_radio() gpio_write(enable_pin, GPIO_HIGH)
 #define disable_radio() gpio_write(enable_pin, GPIO_LOW)
+#define rf24_testRPD() rf24_testCarrierDetect()
 
 SPIState *spi;
 uint8_t enable_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
@@ -426,8 +428,7 @@ void rf24_startListening() {
     write_register_bytes(RX_ADDR_P0, (const uint8_t*)&pipe0_reading_address, 5);
 
   enable_radio();
-  // wait for the radio to come up (130us actually only needed)
-  delayMicroseconds(130);
+  delayMicroseconds(130); /* wait for the radio to come up */
 }
 
 void rf24_stopListening() {
@@ -438,34 +439,29 @@ void rf24_stopListening() {
 
 void rf24_powerDown() {
   write_register(CONFIG, (read_register(CONFIG) & ~PWR_UP));
-  delayMicroseconds(150); /* Adjustments as per gcopeland fork */
+  delayMicroseconds(POWER_DOWN_DELAY);
 }
 
 void rf24_powerUp() {
   write_register(CONFIG, (read_register(CONFIG) | PWR_UP));
-  delayMicroseconds(150); /* Adjustments as per gcopeland fork */
+  delayMicroseconds(POWER_UP_DELAY);
 }
 
 /****************************************************************************/
-void startWrite(const void* buf, uint8_t len) {
-  // Transmitter power-up
-  write_register(CONFIG, ((read_register(CONFIG) | PWR_UP) & ~PRIM_RX));
-  // Adjustments as per gcopeland fork  
-  // delayMicroseconds(150);
-
-  // Send the payload
-  write_payload(buf, len);
-
-  // Allons!
-  enable_radio();
-  delayMicroseconds(10);
+void transmit_payload(const void* buf, uint8_t len) {
+  /* Set radio to transmit */
+  write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX));
+  write_payload(buf, len); /* Write the payload to the TX FIFO */
+  enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
+  delayMicroseconds(WRITE_DELAY);
   disable_radio();
 }
+
 bool rf24_write(const void* buf, uint8_t len) {
   bool result = FALSE;
 
   // Begin the write
-  startWrite(buf, len);
+  transmit_payload(buf, len);
 
   uint8_t observe_tx;
   uint8_t status;
@@ -539,15 +535,13 @@ void rf24_whatHappened(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
   *rx_ready = status & RX_DR;
 }
 
-void rf24_openWritingPipe(uint64_t value) {
+void rf24_setAddress(uint64_t value) {
   // Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
   // expects it LSB first too, so we're good.
 
-  write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, 5);
-  write_register_bytes(TX_ADDR, (uint8_t*)&value, 5);
-
-  const uint8_t max_payload_size = 32;
-  write_register(RX_PW_P0, (payload_size < max_payload_size ? payload_size : max_payload_size));
+  write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, ADDRESS_WIDTH);
+  write_register_bytes(TX_ADDR, (uint8_t*)&value, ADDRESS_WIDTH);
+  write_register(RX_PW_P0, (payload_size < MAX_PAYLOAD_SIZE ? payload_size : MAX_PAYLOAD_SIZE));
 }
 
 void rf24_openReadingPipe(uint8_t child, uint64_t address) {
@@ -584,44 +578,43 @@ void toggle_features() {
 void rf24_enableDynamicPayloads() {
   /* Enable dynamic payload feature */
   uint8_t status = read_register(FEATURE);
-  if (status & EN_DPL) return; /* Already enabled */
-  write_register(FEATURE, (status | EN_DPL));
-
-  // If it didn't work, the features are not enabled
-  if (read_register(FEATURE) == NULL) {
-    toggle_features(); /* So enable them and try again */
-    status = read_register(FEATURE);
-    printf("Not activated: %u\n", status);
+  if ((status & EN_DPL) == 0){
     write_register(FEATURE, (status | EN_DPL));
-  }
-
-  IF_SERIAL_DEBUG(printf("FEATURE=%i\r\n", read_register(FEATURE)));
+    printf("Enabling dyn payloads\n");
+    // If it didn't work, the features are not enabled
+    if (read_register(FEATURE) == 0) {
+      toggle_features(); /* So enable them and try again */
+      write_register(FEATURE, EN_DPL);
+    }
+  } /* Already enabled */
+  printf("FEATURE=%i\r\n", read_register(FEATURE));
   /* Enable dynamic payloads on all pipes */
-  write_register(DYNPD, (read_register(DYNPD) | DPL_ALL));
+  write_register(DYNPD, DPL_ALL);
   dynamic_payloads_enabled = TRUE;
   payload_size = 32;
 }
 
 void rf24_enableAckPayload() {
   /* enable ack payload and dynamic payload features */
-  write_register(FEATURE, (read_register(FEATURE) | EN_ACK_PAY | EN_DPL));
-  /* If it didn't work, the features are not enabled */
-  if (! read_register(FEATURE)) {
-    toggle_features(); /* So enable them and try again */
-    write_register(FEATURE, (read_register(FEATURE) | EN_ACK_PAY | EN_DPL));
+  uint8_t status = read_register(FEATURE);
+  if ((status & (EN_ACK_PAY | EN_DPL)) == 0){
+    write_register(FEATURE, (status | EN_ACK_PAY | EN_DPL));
+    /* If it didn't work, the features are not enabled */
+    if (read_register(FEATURE) == 0) {
+      toggle_features(); /* So enable them and try again */
+      write_register(FEATURE, (EN_ACK_PAY | EN_DPL));
+    }
   }
   IF_SERIAL_DEBUG(printf("FEATURE=%i\r\n", read_register(FEATURE)));
-  /* Enable dynamic payload on pipes 0 & 1 */
-  write_register(DYNPD, (read_register(DYNPD) | DPL_P1 | DPL_P0));
+  /* Enable dynamic payload on pipes 0 */
+  write_register(DYNPD, (read_register(DYNPD) | DPL_P0));
 }
 
 void rf24_writeAckPayload(uint8_t pipe, const void* buf, uint8_t len) {
   const uint8_t* current = (const uint8_t*)buf;
-
+  uint8_t data_len = (len < MAX_PAYLOAD_SIZE ? len : MAX_PAYLOAD_SIZE);
   spi_enable(spi);
   spi_transfer(spi, W_ACK_PAYLOAD | (pipe & 0b111), NULL);
-  const uint8_t max_payload_size = 32;
-  uint8_t data_len = (len < max_payload_size ? len : max_payload_size);
   while (data_len--) spi_transfer(spi, *current++, NULL);
   spi_disable(spi);
 }
@@ -647,12 +640,8 @@ void rf24_setAutoAckOnPipe(uint8_t pipe, bool enable) {
   write_register(EN_AA, en_aa);
 }
 
-bool rf24_testCarrier() {
-  return (read_register(CD) & 1);
-}
-
-bool rf24_testRPD() {
-  return (read_register(RPD) & 1);
+bool rf24_testCarrierDetect() {
+  return (read_register(CD) & CD_CMD);
 }
 
 /****************************************************************************/

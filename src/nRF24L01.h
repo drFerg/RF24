@@ -149,7 +149,7 @@
 #define ARC_CNT     0x0F /* Count re-tx packets, resets when tx new packet */
 
 /* CD register bit fields */
-#define CD_CMD      0x01 /* Carrier Detect */
+#define CD_CMD      0x01 /* Carrier Detect or Received Power Detector in Plus model*/
 
 /* FIFO_STATUS register bit fields */
 #define TX_REUSE    0x40 /* Reuse last TX packet */
@@ -171,7 +171,9 @@
 #define EN_DPL	    0x04 /* Enables Dynamic Payload Length */
 #define EN_ACK_PAY  0x02 /* Enables Payload with ACK */
 #define EN_DYN_ACK  0x01 /* Enables the W_TX_PAYLOAD_NOACK command */
-#define RST_CFG     0x0F 
+#define RST_CFG     0x0F
 
-/* P model memory Map */
-#define RPD         0x01
+/* Timing references */ 
+#define POWER_UP_DELAY 150 /* Tpd2stby - delay before CE can be set high */
+#define POWER_DOWN_DELAY 150
+#define WRITE_DELAY 10 /* Thce - Minimum delay for 1 packet to be sent */ 
