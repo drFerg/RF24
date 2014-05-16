@@ -20,19 +20,58 @@ void assert(uint8_t check, uint8_t value, Result *r){
 }
 
 void test_data_rate(Result *r){
-    printf("Performing Data rate tests...\n");
-    printf("\tSetting data rate to 250Kbps...");
+    printf("[TEST] Performing Data rate tests...\n");
+    printf("[TEST]\tSetting data rate to 250Kbps...");
     rf24_setDataRate(RF24_250KBPS);
     assert(RF24_250KBPS, rf24_getDataRate(), r);
-    printf("\tSetting data rate to 1Mbps...");
+    printf("[TEST]\tSetting data rate to 1Mbps...");
     rf24_setDataRate(RF24_1MBPS);
     assert(RF24_1MBPS, rf24_getDataRate(), r);
-    printf("\tSetting data rate to 2Mbps...");
+    printf("[TEST]\tSetting data rate to 2Mbps...");
     rf24_setDataRate(RF24_2MBPS);
     assert(RF24_2MBPS, rf24_getDataRate(), r);
 }
 
+void test_power_level(Result *r){
+    printf("[TEST] Performing power level tests...\n");
+    printf("[TEST]\tSetting power level to min...");
+    rf24_setPALevel(RF24_PA_MIN);
+    assert(RF24_PA_MIN, rf24_getPALevel, r);
+    printf("[TEST]\tSetting power level to low...");
+    rf24_setPALevel(RF24_PA_LOW);
+    assert(RF24_PA_LOW, rf24_getPALevel, r);
+    printf("[TEST]\tSetting power level to high...");
+    rf24_setPALevel(RF24_PA_HIGH);
+    assert(RF24_PA_HIGH, rf24_getPALevel, r);
+    printf("[TEST]\tSetting power level to max...");
+    rf24_setPALevel(RF24_PA_MAX);
+    assert(RF24_PA_MAX, rf24_getPALevel, r);
+}
 
+void test_crc_length(Result *r){
+    printf("[TEST] Performing crc tests...\n");
+    printf("[TEST]\tDisabling CRC...");
+    rf24_setCRCLength(RF24_CRC_DISABLED);
+    assert(RF24_CRC_DISABLED, rf24_getCRCLength, r);
+    printf("[TEST]\tSetting CRC length to 8bits...");
+    rf24_setCRCLength(RF24_CRC_8);
+    assert(RF24_CRC_8, rf24_getCRCLength, r);
+    printf("[TEST]\tSetting CRC length to 16bits...");
+    rf24_setCRCLength(RF24_CRC_16);
+    assert(RF24_CRC_16, rf24_getCRCLength, r);
+}
+
+void run_test_suite(Result *r){
+    test_data_rate(r);
+    test_power_level(r);
+    printf("***********************************\n");
+    printf("*          Test summary           *\n");
+    printf("*                                 *\n");
+    printf("*   > Tests passed: %d            *\n", r->pass);
+    printf("*   > Tests failed: %d            *\n", r->failed);
+    printf("*                                 *\n");
+    printf("***********************************\n");
+}
 
 void setup(void)
 {
@@ -51,7 +90,7 @@ void setup(void)
     rf24_openReadingPipe(1,0xF0F0F0F0E1LL);
     rf24_startListening();
     rf24_printDetails();
-    test_data_rate(&r);
+    run_test_suite(&r);
 }
  
 void loop(void)
