@@ -92,7 +92,7 @@ uint8_t * reverse_address(uint8_t *address){
   while (i < j){
     temp = address[i];
     address[i++] = address[j];
-    address[j++] = temp;
+    address[j--] = temp;
   }
   return address;
 }
