@@ -88,7 +88,7 @@ static const uint8_t child_pipe_enable[] PROGMEM = {
 };
 
 uint8_t * reverse_address(uint8_t *address){
-  uint8_t i = 0, j = addr_width, temp = 0;
+  uint8_t i = 0, j = addr_width - 1, temp = 0;
   while (i < j){
     temp = address[i];
     address[i++] = address[j];
