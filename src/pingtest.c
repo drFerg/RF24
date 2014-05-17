@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "RF24.h"
 
+uint8_t address[5] = {0xF0,0xF0,0xF0,0xF0,0xE1};
 typedef struct result {
     uint8_t pass;
     uint8_t fail;
@@ -93,10 +94,9 @@ void setup(void)
     rf24_setChannel(76);
     rf24_setCRCLength(RF24_CRC_16);
     rf24_setAddressWidth(5);
-    rf24_openReadingPipe(1, 0xF0F0F0F0E1LL);
+    rf24_setRXAddressOnPipe(address, 1);
     rf24_startListening();
-    rf24_printDetails();
-    
+    rf24_printDetails();   
 }
  
 void loop(void)

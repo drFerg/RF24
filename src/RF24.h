@@ -321,10 +321,10 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * @todo Enforce the restriction that pipes 1-5 must share the top 32 bits
    *
-   * @param number Which pipe# to open, 0-5.
-   * @param address The 40-bit address of the pipe to open.
+   * @param pipe Which pipe# to open, 0-5.
+   * @param address Up to 40-bit address of the pipe to open.
    */
-  void rf24_openReadingPipe(uint8_t number, uint64_t address);
+  void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe);
 
   /**@}*/
   /**
@@ -593,7 +593,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * @param[out] tx_fail The send failed, too many retries (MAX_RT)
    * @param[out] rx_ready There is a message waiting to be read (RX_DS)
    */
-  void rf24_whatHappened(bool *tx_ok, bool *tx_fail, bool *rx_ready);
+  void rf24_getStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready);
 
   /**
    * Test whether there was a carrier on the line for the

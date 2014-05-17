@@ -18,6 +18,8 @@
 #define enable_radio() gpio_write(enable_pin, GPIO_HIGH)
 #define disable_radio() gpio_write(enable_pin, GPIO_LOW)
 #define rf24_testRPD() rf24_testCarrierDetect()
+#define pipe0_is_set() (pipe0_status & 0x01)
+#define auto_ACK_occurred() (pipe0_status & 0x02)
 
 SPIState *spi;
 uint8_t enable_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
@@ -30,9 +32,12 @@ uint8_t payload_size; /**< Fixed size of payloads */
 bool ack_payload_available; /**< Whether there is an ack payload waiting */
 bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */ 
 uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
-uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
+uint8_t pipe0_status;
+uint8_t pipe0_address[5]; /**< Last address set on pipe 0 for reading. */
+uint8_t pipe1_address[5];
+uint8_t pipe234_lsb[3];
 uint8_t transmit_address[5];
-uint8_t address_width;
+uint8_t addr_width;
 /****************************************************************************/
   // Minimum ideal SPI bus speed is 2x data rate
   // If we assume 2Mbs data rate and 16Mhz clock, a
@@ -82,6 +87,15 @@ static const uint8_t child_pipe_enable[] PROGMEM = {
   ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5
 };
 
+uint8_t * reverse_address(uint8_t *address){
+  uint8_t i = 0, j = addr_width, temp = 0;
+  while (i < j){
+    temp = address[i];
+    address[i] = address[j];
+    address[j] = temp;
+  }
+  return address;
+}
 
 /***********************/
 /* Register functions  */
@@ -105,6 +119,7 @@ uint8_t read_register(uint8_t reg) {
 }
 
 uint8_t write_register_bytes(uint8_t reg, const uint8_t* buf, uint8_t len) {
+  /* RPi, x86, nRF25L01(+) are all little-endian so no worry about hton/ntoh*/
   uint8_t status;
   spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
@@ -318,9 +333,10 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
   printf("\r\n");
 }
 
-uint8_t rf24_setAddressWidth(uint8_t addr_width){
-  if (addr_width > MAX_ADDR_WIDTH || addr_width < MIN_ADDR_WIDTH) return 0;
-  write_register(AW, addr_width);
+uint8_t rf24_setAddressWidth(uint8_t address_width){
+  if (address_width > MAX_ADDR_WIDTH || address_width < MIN_ADDR_WIDTH) return 0;
+  write_register(AW, address_width);
+  addr_width = address_width;
   return addr_width;
 }
 
@@ -434,10 +450,9 @@ void rf24_resetcfg(){
 void rf24_startListening() {
   write_register(CONFIG, (read_register(CONFIG) | PWR_UP | PRIM_RX));
   write_register(STATUS, (RX_DR | TX_DS | MAX_RT));
-
-  if (pipe0_reading_address) /* Restore the pipe0 adddress, if exists */
-    write_register_bytes(RX_ADDR_P0, (const uint8_t*)&pipe0_reading_address, 5);
-
+  /* If PIPE0's addr has been set and changed by an autoACK, restore it*/
+  if (PIPE0_SET && PIPE0_AUTO_ACKED) 
+    write_register_bytes(RX_ADDR_P0, reverse_address(pipe0_address), addr_width);
   enable_radio();
   delayMicroseconds(130); /* wait for the radio to come up */
 }
@@ -484,7 +499,7 @@ bool rf24_write(const void* buf, uint8_t len) {
   while(! (status & (TX_DS | MAX_RT)) && (__millis() - sent_at < timeout));
 
   bool tx_ok, tx_fail;
-  rf24_whatHappened(&tx_ok, &tx_fail, &ack_payload_available);
+  rf24_getStatus(&tx_ok, &tx_fail, &ack_payload_available);
   
   //printf("%u%u%u\r\n", tx_ok, tx_fail, ack_payload_available);
 
@@ -534,50 +549,47 @@ bool rf24_read(void* buf, uint8_t len) {
   return is_rx_fifo_empty();
 }
 
-void rf24_whatHappened(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
-  // Read the status & reset the status in one easy call
-  // Or is that such a good idea?
+void rf24_getStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
+  /* Read the status field and clear the bits in one call*/
   uint8_t status = write_register(STATUS, (RX_DR | TX_DS | MAX_RT));
-  // Report to the user what happened
   *tx_ok = status & TX_DS;
   *tx_fail = status & MAX_RT;
   *rx_ready = status & RX_DR;
 }
 
-void rf24_setTXAddress(uint8_t *addr) {
-  /* Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
-   expects it LSB first too, so we're good. */
-  memcpy(transmit_address, addr, address_width);
-  write_register_bytes(TX_ADDR, transmit_address, address_width);
-}
-
 void rf24_autoACKPacket(){
-    write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, address_width);
+    write_register_bytes(RX_ADDR_P0, reverse_address(transmit_address), addr_width);
     write_register(RX_PW_P0, (payload_size < MAX_PAYLOAD_SIZE ? payload_size : MAX_PAYLOAD_SIZE));
+    pipe0_status |= PIPE0_AUTO_ACKED;
 }
 
-void rf24_openReadingPipe(uint8_t child, uint64_t address) {
+void rf24_setTXAddress(uint8_t *addr) {
+  memcpy(transmit_address, addr, addr_width);
+  write_register_bytes(TX_ADDR, reverse_address(transmit_address), addr_width);
+}
+
+void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
+  if (pipe > MAX_PIPE_NUM) return;
   // If this is pipe 0, cache the address.  This is needed because
   // openWritingPipe() will overwrite the pipe 0 address, so
   // startListening() will have to restore it.
-  if (child == 0)
-    pipe0_reading_address = address;
-
-  if (child <= 6)
-  {
-    // For pipes 2-5, only write the LSB
-    if (child < 2)
-      write_register_bytes(pgm_read_byte(&child_pipe[child]), (const uint8_t*)&address, 5);
-    else
-      write_register_bytes(pgm_read_byte(&child_pipe[child]), (const uint8_t*)&address, 1);
-
-    write_register(pgm_read_byte(&child_payload_size[child]), payload_size);
-
-    // Note it would be more efficient to set all of the bits for all open
-    // pipes at once.  However, I thought it would make the calling code
-    // more simple to do it this way.
-    write_register(EN_RXADDR, read_register(EN_RXADDR) | _BV(pgm_read_byte(&child_pipe_enable[child])));
+  if (pipe == 0){
+    pipe0_status = PIPE0_SET;
+    memcpy(pipe0_address, address, addr_width);
   }
+    
+  // For pipes 2-5, only write the LSB
+  if (pipe < 2)
+    write_register_bytes(pgm_read_byte(&child_pipe[pipe]), reverse_address(address), addr_width);
+  else
+    write_register_bytes(pgm_read_byte(&child_pipe[pipe]), address + (addr_width - 1), 1);
+
+  write_register(pgm_read_byte(&child_payload_size[pipe]), payload_size);
+
+  // Note it would be more efficient to set all of the bits for all open
+  // pipes at once.  However, I thought it would make the calling code
+  // more simple to do it this way.
+  write_register(EN_RXADDR, read_register(EN_RXADDR) | _BV(pgm_read_byte(&child_pipe_enable[pipe])));
 }
 
 void toggle_features() {

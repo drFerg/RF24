@@ -95,10 +95,10 @@
 #define ENAA_NONE   0x00 /* Disable Auto-ACK in all pipes */
 
 /* EN_RXADDR register bit fields */
-#define ERX_P5      0x10 /* Enable data pipe PX */
-#define ERX_P4      0x04 /* ^ */
+#define ERX_P5      0x20 /* Enable data pipe PX */
+#define ERX_P4      0x10 /* ^ */
 #define ERX_P3      0x08 /* ^ */
-#define ERX_P2      0x03 /* ^ */
+#define ERX_P2      0x04 /* ^ */
 #define ERX_P1      0x02 /* ^ */
 #define ERX_P0      0x01 /* ^ */
 
@@ -183,3 +183,7 @@
 #define MAX_PAYLOAD_SIZE 32
 #define MIN_ADDR_WIDTH 3
 #define MAX_ADDR_WIDTH 5
+#define MIN_PIPE_NUM 0
+#define MAX_PIPE_NUM 5
+#define PIPE0_SET 1
+#define PIPE0_AUTO_ACKED 2
