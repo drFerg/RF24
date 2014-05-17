@@ -284,7 +284,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * @return True if the payload was delivered successfully false if not
    */
   bool rf24_read( void* buf, uint8_t len );
-
+  void rf24_autoACKPacket();
   /**
    * Open a pipe for writing
    *
@@ -292,18 +292,13 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * you'll listen to.  Do not call this while actively listening.
    * Remember to stopListening() first.
    *
-   * Addresses are 40-bit hex values, e.g.:
+   * Addresses are an array of bytes, length is determined by setAddressWidth command
    *
-   * @code
-   *   openWritingPipe(0xF0F0F0F0F0);
-   * @endcode
    *
-   * @param address The 40-bit address of the pipe to open.  This can be
-   * any value whatsoever, as long as you are the only one writing to it
-   * and only one other radio is listening to it.  Coordinate these pipe
-   * addresses amongst nodes on the network.
+   * @param address The n-bit address of the pipe to open. This is the address of the recipient. 
+   * Coordinate these pipe addresses amongst nodes on the network.
    */
-  void rf24_openWritingPipe(uint64_t address);
+  void rf24_setTXAddress(uint8_t *addr);
 
   /**
    * Open a pipe for reading

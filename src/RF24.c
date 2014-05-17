@@ -470,8 +470,6 @@ void transmit_payload(const void* buf, uint8_t len) {
 
 bool rf24_write(const void* buf, uint8_t len) {
   bool result = FALSE;
-
-  // Begin the write
   transmit_payload(buf, len);
 
   uint8_t observe_tx;
@@ -546,13 +544,16 @@ void rf24_whatHappened(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
   *rx_ready = status & RX_DR;
 }
 
-void rf24_setAddress(uint64_t value) {
-  // Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
-  // expects it LSB first too, so we're good.
+void rf24_setTXAddress(uint8_t *addr) {
+  /* Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
+   expects it LSB first too, so we're good. */
+  memcpy(transmit_address, addr, address_width);
+  write_register_bytes(TX_ADDR, transmit_address, address_width);
+}
 
-  write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, address_width);
-  write_register_bytes(TX_ADDR, (uint8_t*)&value, address_width);
-  write_register(RX_PW_P0, (payload_size < MAX_PAYLOAD_SIZE ? payload_size : MAX_PAYLOAD_SIZE));
+void rf24_autoACKPacket(){
+    write_register_bytes(RX_ADDR_P0, (uint8_t*)&value, address_width);
+    write_register(RX_PW_P0, (payload_size < MAX_PAYLOAD_SIZE ? payload_size : MAX_PAYLOAD_SIZE));
 }
 
 void rf24_openReadingPipe(uint8_t child, uint64_t address) {
