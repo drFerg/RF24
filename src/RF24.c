@@ -91,8 +91,8 @@ uint8_t * reverse_address(uint8_t *address){
   uint8_t i = 0, j = addr_width, temp = 0;
   while (i < j){
     temp = address[i];
-    address[i] = address[j];
-    address[j] = temp;
+    address[i++] = address[j];
+    address[j++] = temp;
   }
   return address;
 }
@@ -611,7 +611,6 @@ void rf24_enableDynamicPayloads() {
       write_register(FEATURE, EN_DPL);
     }
   } /* Already enabled */
-  printf("FEATURE=%i\r\n", read_register(FEATURE));
   /* Enable dynamic payloads on all pipes */
   write_register(DYNPD, DPL_ALL);
   dynamic_payloads_enabled = TRUE;
