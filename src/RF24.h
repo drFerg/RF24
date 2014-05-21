@@ -298,7 +298,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * @param address The n-bit address of the pipe to open. This is the address of the recipient. 
    * Coordinate these pipe addresses amongst nodes on the network.
    */
-  void rf24_setTXAddress(uint8_t *addr);
+  /*void rf24_setTXAddress(uint8_t *addr); */
 
   /**
    * Open a pipe for reading
