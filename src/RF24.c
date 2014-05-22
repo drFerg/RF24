@@ -501,6 +501,15 @@ void rf24_powerUp() {
   delayMicroseconds(POWER_UP_DELAY);
 }
 
+uint8_t get_dyn_payload_len() {
+  uint8_t result = 0;
+  spi_enable(spi);
+  spi_transfer(spi, R_RX_PL_WID, NULL);
+  spi_transfer(spi, 0xff, &result);
+  spi_disable(spi);
+  return result;
+}
+
 /* private function for tx packet using hw */
 void transmit_payload(const void* buf, uint8_t len) {
   /* Set radio to transmit */
@@ -547,35 +556,19 @@ bool rf24_write(const void* buf, uint8_t len) {
   // Handle the ack packet
   if (ack_payload_available)
   {
-    ack_payload_length = rf24_getDynamicPayloadSize();
+    ack_payload_length = get_dyn_payload_len();
     IF_SERIAL_DEBUG(printf("[AckPacket]/"));
     IF_SERIAL_DEBUG(printf("%i\n", ack_payload_length));
   }
   return result;
 }
 
-uint8_t get_dyn_payload_len() {
-  uint8_t result = 0;
-  spi_enable(spi);
-  spi_transfer(spi, R_RX_PL_WID, NULL);
-  spi_transfer(spi, 0xff, &result);
-  spi_disable(spi);
-  return result;
-}
-
 bool rf24_available(uint8_t* pipe_num) {
   uint8_t status = get_status();
   bool result = (status & RX_DR);
-
   if (result) {
     // If the caller wants the pipe number, include that
     if (pipe_num) *pipe_num = (status & RX_P_NO);
-
-    // Clear the status bit
-    // ??? Should this REALLY be cleared now?  Or wait until we
-    // actually READ the payload?
-    
-
     // Handle ack payload receipt
     if (status & TX_DS) write_register(STATUS, TX_DS);
   }
