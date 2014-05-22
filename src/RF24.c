@@ -199,11 +199,6 @@ uint8_t get_status() {
   return status;
 }
 
-void setTXAddress(uint8_t *addr) {
-  memcpy(transmit_address, addr, addr_width);
-  write_register_bytes(TX_ADDR, reverse_address(transmit_address), addr_width);
-}
-
 void toggle_features() {
   spi_enable(spi);
   spi_transfer(spi, ACTIVATE, NULL);
@@ -228,6 +223,11 @@ void transmit_payload(const void* buf, uint8_t len) {
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
   delayMicroseconds(WRITE_DELAY);
   disable_radio();
+}
+
+void setTXAddress(uint8_t *addr) {
+  memcpy(transmit_address, addr, addr_width);
+  write_register_bytes(TX_ADDR, reverse_address(transmit_address), addr_width);
 }
 
 void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
@@ -266,8 +266,7 @@ bool rf24_setDataRate(rf24_datarate_e speed) {
   write_register(RF_SETUP, setup);
   if (setup == read_register(RF_SETUP)) { /* Verify write */
     return TRUE;
-  } 
-  else {
+  } else {
     wide_band = FALSE;
     return FALSE;
   }
@@ -508,8 +507,7 @@ bool rf24_write(const void* buf, uint8_t len) {
   IF_SERIAL_DEBUG(printf("%s\n", result ? "...OK." : "...Failed"));
 
   // Handle the ack packet
-  if (ack_payload_available)
-  {
+  if (ack_payload_available) {
     ack_payload_length = get_dyn_payload_len();
     IF_SERIAL_DEBUG(printf("[AckPacket]/"));
     IF_SERIAL_DEBUG(printf("%i\n", ack_payload_length));
@@ -537,14 +535,12 @@ void rf24_enableDynamicPayloads() {
   if ((status & EN_DPL) == 0){
     write_register(FEATURE, (status | EN_DPL));
     printf("Enabling dyn payloads\n");
-    // If it didn't work, the features are not enabled
-    if (read_register(FEATURE) == 0) {
-      toggle_features(); /* So enable them and try again */
+    if (read_register(FEATURE) == 0) { /* Did it fail? */
+      toggle_features(); /* Features aren't enabled, enable them and try again */
       write_register(FEATURE, EN_DPL);
     }
   } /* Already enabled */
-  /* Enable dynamic payloads on all pipes */
-  write_register(DYNPD, DPL_ALL);
+  write_register(DYNPD, DPL_ALL); /* Enable dynamic payloads on all pipes */
   dyn_payloads_set = TRUE;
   payload_len = 32;
 }

@@ -11,6 +11,7 @@
 #include "gpio.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#define BUF_LEN 1
 #define SET_SPI(_spi, _mode, _bits, _speed, _chip_select) do {\
 	_spi->mode = _mode;\
 	_spi->bits = _bits;\
@@ -18,12 +19,6 @@
 	_spi->chip_select = _chip_select;\
 } while (0)
 
-//	speed = 24000000; // 24Mhz
-//	speed = 16000000; // 16Mhz 
-//	speed = 8000000; // 8Mhz
- // uint32_t speed = 2000000; // 2Mhz 
-	// uint32_t mode = 0;
-	// uint8_t bits = 8;
 typedef struct spi_state {
 	uint32_t speed;
 	uint32_t mode;
@@ -94,22 +89,19 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		return 0;
 	}
 	int ret;
-	// One byte is transferred at once
-	uint8_t tx[] = {0};
-	tx[0] = val;
-
-	uint8_t rx_val[ARRAY_SIZE(tx)] = {0};
+	uint8_t tx[BUF_LEN] = {val};
+	uint8_t rx_val[BUF_LEN] = {0};
 	struct spi_ioc_transfer tr;
-	tr.tx_buf = (unsigned long)tx;
-	tr.rx_buf = (unsigned long)rx_val;
-	tr.len = ARRAY_SIZE(tx);
+	tr.tx_buf = (uint64_t)tx;
+	tr.rx_buf = (uint64_t)rx_val;
+	tr.len = BUF_LEN;
 	tr.delay_usecs = 0;
-//	tr.cs_change = 1;
+	tr.cs_change = 0;
 	tr.speed_hz = spi->speed;
 	tr.bits_per_word = spi->bits;
 
 	ret = ioctl(spi->fd, SPI_IOC_MESSAGE(1), &tr);
-	if (ret < 1){
+	if (ret < 1) {
 		perror("ERROR: can't send spi message");
 		return 0;		
 	}
