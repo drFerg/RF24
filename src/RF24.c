@@ -28,9 +28,9 @@ uint32_t spispeed;
 uint8_t chip_select; /**< SPI Chip select */
 bool wide_band; /* 2Mbs data rate in use? */
 bool p_variant; /* False for RF24L01 and TRUE for RF24L01P */
-uint8_t payload_size; /**< Fixed size of payloads */
+uint8_t payload_len; /**< Fixed size of payloads */
 bool ack_payload_available; /**< Whether there is an ack payload waiting */
-bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */ 
+bool dyn_payloads_set; /**< Whether dynamic payloads are enabled. */ 
 uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
 uint8_t pipe0_status;
 uint8_t pipe0_address[5]; /**< Last address set on pipe 0 for reading. */
@@ -144,8 +144,8 @@ uint8_t write_register(uint8_t reg, uint8_t value) {
 uint8_t write_payload(const void* buf, uint8_t len) {
   uint8_t status;
   const uint8_t* current = (const uint8_t*)buf;
-  uint8_t data_len = (len < payload_size ? len : payload_size);
-  uint8_t blank_len = dynamic_payloads_enabled ? 0 : payload_size - data_len;
+  uint8_t data_len = (len < payload_len ? len : payload_len);
+  uint8_t blank_len = dyn_payloads_set ? 0 : payload_len - data_len;
   
   //printf("[Writing %u bytes %u blanks]", data_len, blank_len);
   
@@ -157,14 +157,13 @@ uint8_t write_payload(const void* buf, uint8_t len) {
   return status;
 }
 
-uint8_t read_payload(void* buf, uint8_t len) {
-  uint8_t status;
+uint8_t read_payload(void* buf, uint8_t buf_len, uint8_t payload_len) {
+  uint8_t status, data_len = payload_len, blank_len = 0;
   uint8_t* current = (uint8_t*)buf;
-  uint8_t data_len = (len < payload_size ? len : payload_size);
-  uint8_t blank_len = (dynamic_payloads_enabled ? 0 : payload_size - data_len);
-  
-  /*printf("[Reading %u bytes %u blanks]", data_len, blank_len);*/
-  
+  if (buf_len < payload_len){
+    data_len = buf_len;
+    blank_len = payload_len - buf_len;
+  }
   spi_enable(spi);
   spi_transfer(spi, R_RX_PAYLOAD, &status);
   while (data_len--) spi_transfer(spi, 0xff, current++);
@@ -221,7 +220,7 @@ void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
   else
     write_register_bytes(pgm_read_byte(&child_pipe[pipe]), address + (addr_width - 1), 1);
 
-  write_register(pgm_read_byte(&child_payload_size[pipe]), payload_size);
+  write_register(pgm_read_byte(&child_payload_size[pipe]), payload_len);
 
   // Note it would be more efficient to set all of the bits for all open
   // pipes at once.  However, I thought it would make the calling code
@@ -380,11 +379,11 @@ void rf24_setChannel(uint8_t channel) {
 }
 
 void rf24_setPayloadSize(uint8_t size) {
-  payload_size = (size < MAX_PAYLOAD_SIZE ? size : MAX_PAYLOAD_SIZE);
+  payload_len = (size < MAX_PAYLOAD_LEN ? size : MAX_PAYLOAD_LEN);
 }
 
 uint8_t rf24_getPayloadSize() {
-  return payload_size;
+  return payload_len;
 }
 
 void rf24_printDetails() {
@@ -453,7 +452,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Initialize CRC and request 2-byte (16bit) CRC
   rf24_setCRCLength(RF24_CRC_16);
   
-  // Disable dynamic payloads, to match dynamic_payloads_enabled setting
+  // Disable dynamic payloads, to match dyn_payloads_set setting
   write_register(DYNPD, 0);
 
   // Reset current status
@@ -555,7 +554,7 @@ bool rf24_write(const void* buf, uint8_t len) {
   return result;
 }
 
-uint8_t rf24_getDynamicPayloadSize() {
+uint8_t get_dyn_payload_len() {
   uint8_t result = 0;
   spi_enable(spi);
   spi_transfer(spi, R_RX_PL_WID, NULL);
@@ -575,7 +574,7 @@ bool rf24_available(uint8_t* pipe_num) {
     // Clear the status bit
     // ??? Should this REALLY be cleared now?  Or wait until we
     // actually READ the payload?
-    write_register(STATUS, RX_DR);
+    
 
     // Handle ack payload receipt
     if (status & TX_DS) write_register(STATUS, TX_DS);
@@ -583,9 +582,16 @@ bool rf24_available(uint8_t* pipe_num) {
   return result;
 }
 
-bool rf24_read(void* buf, uint8_t len) {
-  read_payload(buf, len); /* Fetch the payload */
-  return is_rx_fifo_empty();
+uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags) {
+  uint8_t payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
+  if (payload_len > MAX_PAYLOAD_LEN){
+    flush_rx(); /* Invalid payload needs flushing */
+    return -1;
+  }
+  read_payload(buf, len, payload_len); /* Fetch the payload */
+  if (is_rx_fifo_empty()) /* Clear status bit if there are no more payloads */
+    write_register(STATUS, RX_DR);
+  return payload_len;
 }
 
 void rf24_getStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
@@ -598,7 +604,7 @@ void rf24_getStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
 
 void rf24_autoACKPacket(){
     write_register_bytes(RX_ADDR_P0, reverse_address(transmit_address), addr_width);
-    write_register(RX_PW_P0, (payload_size < MAX_PAYLOAD_SIZE ? payload_size : MAX_PAYLOAD_SIZE));
+    write_register(RX_PW_P0, (payload_len < MAX_PAYLOAD_LEN ? payload_len : MAX_PAYLOAD_LEN));
     pipe0_status |= PIPE0_AUTO_ACKED;
 }
 
@@ -623,8 +629,8 @@ void rf24_enableDynamicPayloads() {
   } /* Already enabled */
   /* Enable dynamic payloads on all pipes */
   write_register(DYNPD, DPL_ALL);
-  dynamic_payloads_enabled = TRUE;
-  payload_size = 32;
+  dyn_payloads_set = TRUE;
+  payload_len = 32;
 }
 
 void rf24_enableAckPayload() {
@@ -645,7 +651,7 @@ void rf24_enableAckPayload() {
 
 void rf24_writeAckPayload(uint8_t pipe, const void* buf, uint8_t len) {
   const uint8_t* current = (const uint8_t*)buf;
-  uint8_t data_len = (len < MAX_PAYLOAD_SIZE ? len : MAX_PAYLOAD_SIZE);
+  uint8_t data_len = (len < MAX_PAYLOAD_LEN ? len : MAX_PAYLOAD_LEN);
   spi_enable(spi);
   spi_transfer(spi, W_ACK_PAYLOAD | (pipe & 0b111), NULL);
   while (data_len--) spi_transfer(spi, *current++, NULL);

@@ -280,10 +280,12 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * for beginners to use.  No casting needed.
    *
    * @param buf Pointer to a buffer where the data should be written
-   * @param len Maximum number of bytes to read into the buffer
-   * @return True if the payload was delivered successfully false if not
+   * @param len Size of the buffer
+   * @param flags Specify attributes of recv((non)blocking)
+   * @return length of payload received, -1 if corrupt
    */
-  bool rf24_read( void* buf, uint8_t len );
+  uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags);
+
   void rf24_autoACKPacket();
   /**
    * Open a pipe for writing
@@ -377,16 +379,6 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
   uint8_t rf24_setAddressWidth(uint8_t addr_width);
   uint8_t rf24_getAddressWidth();
 
-  /**
-   * Get Dynamic Payload Size
-   *
-   * For dynamic payloads, this pulls the size of the payload off
-   * the chip
-   *
-   * @return Payload length of last-received dynamic payload
-   */
-  uint8_t rf24_getDynamicPayloadSize();
-  
   /**
    * Enable custom payloads on the acknowledge packets
    *

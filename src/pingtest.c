@@ -103,13 +103,10 @@ void loop(void)
 {
     // 32 byte character array is max payload
     char receivePayload[32];
- 
+    uint8_t len;
     while (rf24_available(NULL))
     {
-        // read from radio until payload size is reached
-        uint8_t len = rf24_getDynamicPayloadSize();
-        rf24_read(receivePayload, len);
- 
+        len = rf24_recv(receivePayload, len, 0);
         // display payload
         printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
     }

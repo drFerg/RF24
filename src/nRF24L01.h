@@ -180,7 +180,7 @@
 
 /* Other defines */
 #define MAX_CHANNEL 127
-#define MAX_PAYLOAD_SIZE 32
+#define MAX_PAYLOAD_LEN 32
 #define MIN_ADDR_WIDTH 3
 #define MAX_ADDR_WIDTH 5
 #define MIN_PIPE_NUM 0
