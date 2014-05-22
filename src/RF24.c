@@ -77,13 +77,13 @@ static const char * const rf24_pa_dbm_e_str_P[] PROGMEM = {
   rf24_pa_dbm_e_str_3, 
 };
 
-static const uint8_t child_pipe[] PROGMEM = {
+static const uint8_t pipe_addr[] PROGMEM = {
   RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5
 };
-static const uint8_t child_payload_size[] PROGMEM = {
+static const uint8_t pipe_payload_len[] PROGMEM = {
   RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5
 };
-static const uint8_t child_pipe_enable[] PROGMEM = {
+static const uint8_t pipe_enable[] PROGMEM = {
   ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5
 };
 
@@ -204,28 +204,45 @@ void setTXAddress(uint8_t *addr) {
   write_register_bytes(TX_ADDR, reverse_address(transmit_address), addr_width);
 }
 
+void toggle_features() {
+  spi_enable(spi);
+  spi_transfer(spi, ACTIVATE, NULL);
+  spi_transfer(spi, ACTIVATE_2, NULL);
+  spi_disable(spi);
+}
+
+uint8_t get_dyn_payload_len() {
+  uint8_t result = 0;
+  spi_enable(spi);
+  spi_transfer(spi, R_RX_PL_WID, NULL);
+  spi_transfer(spi, 0xff, &result);
+  spi_disable(spi);
+  return result;
+}
+
+/* private function for transmitting packet */
+void transmit_payload(const void* buf, uint8_t len) {
+  /* Set radio to transmit */
+  write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX));
+  write_payload(buf, len); /* Write the payload to the TX FIFO */
+  enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
+  delayMicroseconds(WRITE_DELAY);
+  disable_radio();
+}
+
 void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
   if (pipe > MAX_PIPE_NUM) return;
-  // If this is pipe 0, cache the address.  This is needed because
-  // openWritingPipe() will overwrite the pipe 0 address, so
-  // startListening() will have to restore it.
-  if (pipe == 0){
+  if (pipe == 0){ /* cache pipe0 address as ackWrites overwrite this */
     pipe0_status = PIPE0_SET;
     memcpy(pipe0_address, address, addr_width);
   }
-    
-  // For pipes 2-5, only write the LSB
-  if (pipe < 2)
-    write_register_bytes(pgm_read_byte(&child_pipe[pipe]), reverse_address(address), addr_width);
-  else
-    write_register_bytes(pgm_read_byte(&child_pipe[pipe]), address + (addr_width - 1), 1);
-
-  write_register(pgm_read_byte(&child_payload_size[pipe]), payload_len);
-
-  // Note it would be more efficient to set all of the bits for all open
-  // pipes at once.  However, I thought it would make the calling code
-  // more simple to do it this way.
-  write_register(EN_RXADDR, read_register(EN_RXADDR) | _BV(pgm_read_byte(&child_pipe_enable[pipe])));
+  switch(pipe){ /* For pipes 2-5, only write the last byte */
+    case(0):
+    case(1): write_register_bytes(pipe_addr[pipe], reverse_address(address), addr_width); break;
+    default: write_register_bytes(pipe_addr[pipe], address + (addr_width - 1), 1); break;
+  }
+  write_register(pipe_payload_len[pipe], payload_len); /* Set payload len and enable */
+  write_register(EN_RXADDR, read_register(EN_RXADDR) | pipe_enable[pipe]);
 }
 
 bool rf24_setDataRate(rf24_datarate_e speed) {
@@ -319,48 +336,6 @@ void rf24_setRetries(uint8_t delay, uint8_t count) {
  write_register(SETUP_RETR, (delay&0xf)<<ARD | (count&0xf)<<ARC);
 }
 
-void print_status(uint8_t status) {
-  printf("STATUS\t\t = 0x%02x RX_DR=%x TX_DS=%x MAX_RT=%x RX_P_NO=%x TX_FULL=%x\r\n", 
-           status, 
-           (status & RX_DR)?1:0, 
-           (status & TX_DS)?1:0, 
-           (status & MAX_RT)?1:0, 
-           ((status >> RX_P_NO) & 0b111), 
-           (status & TX_FIFO_FULL)?1:0
-         );
-}
-
-void print_observe_tx(uint8_t value) {
-  printf("OBSERVE_TX=%02x: POLS_CNT=%x ARC_CNT=%x\r\n", 
-           value, 
-           (value >> PLOS_CNT) & 0b1111, 
-           (value >> ARC_CNT) & 0b1111
-         );
-}
-
-void print_byte_register(char* name, uint8_t reg) {
-  printf("\t%s =", name);
-  printf(" 0x%x", read_register(reg++));
-
-}
-
-void print_address_register(char* name, uint8_t reg, uint8_t qty) {
-  printf("\t%s =", name);
-
-  while (qty--)
-  {
-    uint8_t buffer[5];
-    read_register_bytes(reg++, buffer, sizeof(buffer));
-
-    printf(" 0x");
-    uint8_t* bufptr = buffer + sizeof(buffer);
-    while(--bufptr >= buffer)
-      printf("%02x", *bufptr);
-  }
-
-  printf("\r\n");
-}
-
 uint8_t rf24_setAddressWidth(uint8_t address_width){
   if (address_width > MAX_ADDR_WIDTH || address_width < MIN_ADDR_WIDTH) return 0;
   write_register(AW, address_width);
@@ -384,32 +359,6 @@ void rf24_setPayloadSize(uint8_t size) {
 
 uint8_t rf24_getPayloadSize() {
   return payload_len;
-}
-
-void rf24_printDetails() {
-
-  printf("SPI device\t = %s\r\n", spidevice);
-  printf("SPI speed\t = %d\r\n", spispeed);
-  printf("CE GPIO\t = %d\r\n", enable_pin);
-  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
-  printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
-  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
-  print_status(get_status());
-
-  print_address_register("RX_ADDR_P0-1", RX_ADDR_P0, 2);
-  print_byte_register("RX_ADDR_P2-5", RX_ADDR_P2);
-  //print_address_register("TX_ADDR", TX_ADDR);
-
-  print_byte_register("RX_PW_P0-6", RX_PW_P0);
-  print_byte_register("EN_AA", EN_AA);
-  print_byte_register("EN_RXADDR", EN_RXADDR);
-  print_byte_register("RF_CH", RF_CH);
-  print_byte_register("RF_SETUP", RF_SETUP);
-  print_byte_register("CONFIG", CONFIG);
-  print_byte_register("DYNPD/FEATURE", DYNPD);
-
-  
 }
 
 uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
@@ -501,23 +450,28 @@ void rf24_powerUp() {
   delayMicroseconds(POWER_UP_DELAY);
 }
 
-uint8_t get_dyn_payload_len() {
-  uint8_t result = 0;
-  spi_enable(spi);
-  spi_transfer(spi, R_RX_PL_WID, NULL);
-  spi_transfer(spi, 0xff, &result);
-  spi_disable(spi);
+bool rf24_available(uint8_t* pipe_num) {
+  uint8_t status = get_status();
+  bool result = (status & RX_DR);
+  if (result) {
+    // If the caller wants the pipe number, include that
+    if (pipe_num) *pipe_num = (status & RX_P_NO);
+    // Handle ack payload receipt
+    if (status & TX_DS) write_register(STATUS, TX_DS);
+  }
   return result;
 }
 
-/* private function for tx packet using hw */
-void transmit_payload(const void* buf, uint8_t len) {
-  /* Set radio to transmit */
-  write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX));
-  write_payload(buf, len); /* Write the payload to the TX FIFO */
-  enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
-  delayMicroseconds(WRITE_DELAY);
-  disable_radio();
+uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags) {
+  uint8_t payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
+  if (payload_len > MAX_PAYLOAD_LEN){
+    flush_rx(); /* Invalid payload needs flushing */
+    return -1;
+  }
+  read_payload(buf, len, payload_len); /* Fetch the payload */
+  if (is_rx_fifo_empty()) /* Clear status bit if there are no more payloads */
+    write_register(STATUS, RX_DR);
+  return payload_len;
 }
 
 bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
@@ -563,30 +517,6 @@ bool rf24_write(const void* buf, uint8_t len) {
   return result;
 }
 
-bool rf24_available(uint8_t* pipe_num) {
-  uint8_t status = get_status();
-  bool result = (status & RX_DR);
-  if (result) {
-    // If the caller wants the pipe number, include that
-    if (pipe_num) *pipe_num = (status & RX_P_NO);
-    // Handle ack payload receipt
-    if (status & TX_DS) write_register(STATUS, TX_DS);
-  }
-  return result;
-}
-
-uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags) {
-  uint8_t payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
-  if (payload_len > MAX_PAYLOAD_LEN){
-    flush_rx(); /* Invalid payload needs flushing */
-    return -1;
-  }
-  read_payload(buf, len, payload_len); /* Fetch the payload */
-  if (is_rx_fifo_empty()) /* Clear status bit if there are no more payloads */
-    write_register(STATUS, RX_DR);
-  return payload_len;
-}
-
 void rf24_getStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
   /* Read the status field and clear the bits in one call*/
   uint8_t status = write_register(STATUS, (RX_DR | TX_DS | MAX_RT));
@@ -599,13 +529,6 @@ void rf24_autoACKPacket(){
     write_register_bytes(RX_ADDR_P0, reverse_address(transmit_address), addr_width);
     write_register(RX_PW_P0, (payload_len < MAX_PAYLOAD_LEN ? payload_len : MAX_PAYLOAD_LEN));
     pipe0_status |= PIPE0_AUTO_ACKED;
-}
-
-void toggle_features() {
-  spi_enable(spi);
-  spi_transfer(spi, ACTIVATE, NULL);
-  spi_transfer(spi, ACTIVATE_2, NULL);
-  spi_disable(spi);
 }
 
 void rf24_enableDynamicPayloads() {
@@ -676,5 +599,60 @@ bool rf24_testCarrierDetect() {
   return (read_register(CD) & CD_CMD);
 }
 
-/****************************************************************************/
-// vim:ai:cin:sts=2 sw=2 ft=cpp
+void print_status(uint8_t status) {
+  printf("STATUS\t\t = 0x%02x RX_DR=%x TX_DS=%x MAX_RT=%x RX_P_NO=%x TX_FULL=%x\r\n", 
+           status, 
+           (status & RX_DR)?1:0, 
+           (status & TX_DS)?1:0, 
+           (status & MAX_RT)?1:0, 
+           ((status >> RX_P_NO) & 0b111), 
+           (status & TX_FIFO_FULL)?1:0
+         );
+}
+
+void print_observe_tx(uint8_t value) {
+  printf("OBSERVE_TX=%02x: POLS_CNT=%x ARC_CNT=%x\r\n", 
+           value, 
+           (value >> PLOS_CNT) & 0b1111, 
+           (value >> ARC_CNT) & 0b1111
+         );
+}
+
+void print_byte_register(char* name, uint8_t reg) {
+  printf("\t%s =", name);
+  printf(" 0x%x", read_register(reg++));
+}
+
+void print_address_register(char* name, uint8_t reg, uint8_t qty) {
+  printf("\t%s =", name);
+  while (qty--) {
+    uint8_t buffer[5];
+    read_register_bytes(reg++, buffer, sizeof(buffer));
+    printf(" 0x");
+    uint8_t* bufptr = buffer + sizeof(buffer);
+    while(--bufptr >= buffer) printf("%02x", *bufptr);
+  }
+
+  printf("\r\n");
+}
+
+void rf24_printDetails() {
+  printf("SPI device\t = %s\r\n", spidevice);
+  printf("SPI speed\t = %d\r\n", spispeed);
+  printf("CE GPIO\t = %d\r\n", enable_pin);
+  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
+  printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
+  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
+  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
+  print_status(get_status());
+  print_address_register("RX_ADDR_P0-1", RX_ADDR_P0, 2);
+  print_byte_register("RX_ADDR_P2-5", RX_ADDR_P2);
+  //print_address_register("TX_ADDR", TX_ADDR);
+  print_byte_register("RX_PW_P0-6", RX_PW_P0);
+  print_byte_register("EN_AA", EN_AA);
+  print_byte_register("EN_RXADDR", EN_RXADDR);
+  print_byte_register("RF_CH", RF_CH);
+  print_byte_register("RF_SETUP", RF_SETUP);
+  print_byte_register("CONFIG", CONFIG);
+  print_byte_register("DYNPD/FEATURE", DYNPD);
+}
