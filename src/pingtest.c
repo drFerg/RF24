@@ -3,26 +3,29 @@
 #include "RF24.h"
 
 uint8_t address[5] = {0xF0,0xF0,0xF0,0xF0,0xE1};
+/* 32 byte character array is max payload */
+char receivePayload[32];
+uint8_t len;
+
 typedef struct result {
     uint8_t pass;
     uint8_t fail;
 } Result;
 
 
-uint8_t assert(int check, int value, Result *r){
-    if (check == value){
+uint8_t assert(int check, int value, Result *r) {
+    if (check == value) {
         r->pass++;
         printf("\tPASS\n");
         return 1;
-    }
-    else{
+    } else {
         r->fail++;
         printf("\tFAIL\n");
         return 0;
     }
 }
 
-void test_data_rate(Result *r){
+void test_data_rate(Result *r) {
     printf("[TEST SUITE] Performing Data rate tests...\n");
     printf("[TEST]\tSetting data rate to 250Kbps...");
     rf24_setDataRate(RF24_250KBPS);
@@ -36,7 +39,7 @@ void test_data_rate(Result *r){
     assert(RF24_2MBPS, rf24_getDataRate(), r);
 }
 
-void test_power_level(Result *r){
+void test_power_level(Result *r) {
     printf("[TEST SUITE] Performing power level tests...\n");
     printf("[TEST]\tSetting power level to min...");
     rf24_setPALevel(RF24_PA_MIN);
@@ -52,7 +55,7 @@ void test_power_level(Result *r){
     assert(RF24_PA_MAX, rf24_getPALevel(), r);
 }
 
-void test_crc_length(Result *r){
+void test_crc_length(Result *r) {
     printf("[TEST SUITE] Performing crc tests...\n");
     printf("[TEST]\tDisabling CRC...");
     rf24_setCRCLength(RF24_CRC_DISABLED);
@@ -65,7 +68,7 @@ void test_crc_length(Result *r){
     assert(RF24_CRC_16, rf24_getCRCLength(), r);
 }
 
-void run_test_suite(Result *r){
+void run_test_suite(Result *r) {
     printf("\n***********************************\n");
     printf("      nRF24L01(+) test suite\n\n");
     test_data_rate(r);
@@ -77,11 +80,8 @@ void run_test_suite(Result *r){
     printf("***********************************\n");
 }
 
-void setup(void)
-{
+void setup(void) {
     Result r = {.pass = 0, .fail = 0};
-    // init radio for reading
-  // spi device, spi speed, ce gpio pin
     uint8_t status = rf24_init_radio("/dev/spidev0.0", 8000000, 25);
     if (status == 0) exit(-1);
     run_test_suite(&r);
@@ -99,24 +99,17 @@ void setup(void)
     rf24_printDetails();   
 }
  
-void loop(void)
-{
-    // 32 byte character array is max payload
-    char receivePayload[32];
-    uint8_t len;
-    while (rf24_available(NULL))
-    {
+void loop(void) {
+    while (rf24_available(NULL)) {
         len = rf24_recv(receivePayload, len, 0);
         // display payload
         printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
     }
 }
  
-int main(int argc, char** argv) 
-{
+int main(int argc, char** argv) {
     setup();
     while(1)
         loop();
- 
     return 0;
 }
