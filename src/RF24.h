@@ -455,9 +455,8 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    * @warning setting RF24_250KBPS will fail for non-plus units
    *
    * @param speed RF24_250KBPS for 250kbs, RF24_1MBPS for 1Mbps, or RF24_2MBPS for 2Mbps
-   * @return true if the change was successful
    */
-  bool rf24_setDataRate(rf24_datarate_e speed);
+  void rf24_setDataRate(rf24_datarate_e speed);
   
   /**
    * Fetches the transmission data rate

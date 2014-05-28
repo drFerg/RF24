@@ -145,11 +145,8 @@ uint8_t write_payload(const void* buf, uint8_t len) {
   uint8_t status;
   const uint8_t* current = (const uint8_t*)buf;
   uint8_t data_len = (len < payload_len ? len : payload_len);
-  uint8_t blank_len = dyn_payloads_set ? 0 : payload_len - data_len;
-  
-  //printf("[Writing %u bytes %u blanks]", data_len, blank_len);
-  
-  spi_enable(spi);
+  uint8_t blank_len = (dyn_payloads_set ? 0 : payload_len - data_len);
+  spi_enable(spi); /* Write bytes plus blanks if non-dynamic payloads */
   spi_transfer(spi, W_TX_PAYLOAD, &status);
   while (data_len--) spi_transfer(spi, *current++, NULL);
   while (blank_len--) spi_transfer(spi, 0, NULL);
@@ -191,7 +188,7 @@ uint8_t flush_tx() {
   return status;
 }
 
-uint8_t get_status() {
+uint8_t check_status() {
   uint8_t status;
   spi_enable(spi);
   spi_transfer(spi, NOP, &status);
@@ -217,8 +214,7 @@ uint8_t get_dyn_payload_len() {
 
 /* private function for transmitting packet */
 void transmit_payload(const void* buf, uint8_t len) {
-  /* Set radio to transmit */
-  write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX));
+  write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX)); /* Toggle RX/TX mode */
   write_payload(buf, len); /* Write the payload to the TX FIFO */
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
   delayMicroseconds(WRITE_DELAY);
@@ -242,14 +238,13 @@ void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
     default: write_register_bytes(pipe_addr[pipe], address + (addr_width - 1), 1); break;
   }
   write_register(pipe_payload_len[pipe], payload_len); /* Set payload len and enable */
-  write_register(EN_RXADDR, read_register(EN_RXADDR) | pipe_enable[pipe]);
+  write_register(EN_RXADDR, (read_register(EN_RXADDR) | pipe_enable[pipe]));
 }
 
-bool rf24_setDataRate(rf24_datarate_e speed) {
+void rf24_setDataRate(rf24_datarate_e speed) {
   uint8_t setup = read_register(RF_SETUP);
   wide_band = FALSE;
   setup &= ~RF_DR; /* Clear DR bits i.e. 1Mbps is 00 */
-
   switch(speed){
     case(RF24_250KBPS): {
       setup |= RF_DR_250K; /* Set low speed bit */
@@ -261,15 +256,8 @@ bool rf24_setDataRate(rf24_datarate_e speed) {
       setup |= RF_DR_2M; /* Set high speed bit */
       break;
     }
-    default: return FALSE;
   }
   write_register(RF_SETUP, setup);
-  if (setup == read_register(RF_SETUP)) { /* Verify write */
-    return TRUE;
-  } else {
-    wide_band = FALSE;
-    return FALSE;
-  }
 }
 
 rf24_datarate_e rf24_getDataRate() {
@@ -391,7 +379,8 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // reset our data rate back to default value. This works
   // because a non-P variant won't allow the data rate to
   // be set to 250Kbps.
-  if(rf24_setDataRate(RF24_250KBPS)) p_variant = TRUE;
+  rf24_setDataRate(RF24_250KBPS);
+  if(rf24_getDataRate() == RF24_250KBPS) p_variant = TRUE;
   
   // Then set the data rate to the slowest (and most reliable) speed supported by all
   // hardware.
@@ -418,7 +407,6 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   return 1;
 }
 
-
 void rf24_resetcfg(){
   write_register(CONFIG, RST_CFG);
 }
@@ -430,7 +418,7 @@ void rf24_startListening() {
   if (PIPE0_SET && PIPE0_AUTO_ACKED) 
     write_register_bytes(RX_ADDR_P0, reverse_address(pipe0_address), addr_width);
   enable_radio();
-  delayMicroseconds(130); /* wait for the radio to come up */
+  delayMicroseconds(LISTEN_DELAY); /* wait for the radio to come up */
 }
 
 void rf24_stopListening() {
@@ -450,13 +438,11 @@ void rf24_powerUp() {
 }
 
 bool rf24_available(uint8_t* pipe_num) {
-  uint8_t status = get_status();
+  uint8_t status = check_status();
   bool result = (status & RX_DR);
   if (result) {
     // If the caller wants the pipe number, include that
     if (pipe_num) *pipe_num = (status & RX_P_NO);
-    // Handle ack payload receipt
-    if (status & TX_DS) write_register(STATUS, TX_DS);
   }
   return result;
 }
@@ -640,7 +626,7 @@ void rf24_printDetails() {
   printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
   printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
   printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
-  print_status(get_status());
+  print_status(check_status());
   print_address_register("RX_ADDR_P0-1", RX_ADDR_P0, 2);
   print_byte_register("RX_ADDR_P2-5", RX_ADDR_P2);
   //print_address_register("TX_ADDR", TX_ADDR);
