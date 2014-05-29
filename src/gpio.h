@@ -22,6 +22,7 @@ int gpio_read(int port, int *val);
 /* Writes val to the specified port
  * returns 1 if successful, 0 otherwise */
 int gpio_write(int port, int val);
+int gpio_enable_edge(int port, int edge);
 
 #endif	/* GPIO_H */
 
