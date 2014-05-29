@@ -10,6 +10,7 @@
 #include "RF24_config.h"
 #include "RF24.h"
 
+
 #define SPI_BITS 8
 #define SPI_MODE 0
 
@@ -256,6 +257,7 @@ void rf24_setDataRate(rf24_datarate_e speed) {
       setup |= RF_DR_2M; /* Set high speed bit */
       break;
     }
+    case(RF24_ERROR): return;
   }
   write_register(RF_SETUP, setup);
 }

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "RF24.h"
+#include "interrupts.h"
 
 uint8_t address[5] = {0xF0,0xF0,0xF0,0xF0,0xE1};
 /* 32 byte character array is max payload */
@@ -96,7 +97,8 @@ void setup(void) {
     rf24_setAddressWidth(5);
     rf24_setRXAddressOnPipe(address, 1);
     rf24_startListening();
-    rf24_printDetails();   
+    rf24_printDetails();
+    interrupt_wait(24);
 }
  
 void loop(void) {
