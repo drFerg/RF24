@@ -10,7 +10,7 @@ int gpio_open(int port, int dir) {
 	if (f == NULL) return ERROR;
 	fprintf(f, "%d\n", port);
 	fclose(f);
-
+	
 	sprintf(path, "/sys/class/gpio/gpio%d/direction", port);
 	f = fopen(path, "w");
 	if (f == NULL) return ERROR;

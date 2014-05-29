@@ -11,11 +11,12 @@
 #define POLL_TIMEOUT    1000
 #define RDBUF_LEN   5
 
-int interrupt_wait(int pin) {
+int interrupt_wait(void *port) {
     char fn[GPIO_FN_MAXLEN];
     int fd,ret;
     struct pollfd pfd;
     char rdbuf[RDBUF_LEN];
+    int pin = (int) port;
 
     memset(rdbuf, 0x00, RDBUF_LEN);
     memset(fn, 0x00, GPIO_FN_MAXLEN);
@@ -41,7 +42,7 @@ int interrupt_wait(int pin) {
     while(1) {
         memset(rdbuf, 0x00, RDBUF_LEN);
         lseek(fd, 0, SEEK_SET);
-        ret = poll(&pfd, 1, POLL_TIMEOUT);
+        ret = poll(&pfd, 1, -1);
         if (ret < 0) {
             perror("poll()");
             close(fd);

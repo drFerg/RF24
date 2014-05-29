@@ -19,7 +19,7 @@ LIBNAME=librf24.so.1.0
 
 
 CCFLAGS= -Wall -W -fPIC
-CFLAGS= -Wall -W -fPIC -g
+CFLAGS= -Wall -W -fPIC -g -pthread
 # make all
 ifeq ($(platform), pi)
 	CCFLAGS+=-Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s

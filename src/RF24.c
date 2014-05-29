@@ -6,10 +6,11 @@
  version 2 as published by the Free Software Foundation.
  */
 
+#include <pthread.h>
 #include "nRF24L01.h"
 #include "RF24_config.h"
 #include "RF24.h"
-
+#include "interrupts.h"
 
 #define SPI_BITS 8
 #define SPI_MODE 0
@@ -39,6 +40,7 @@ uint8_t pipe1_address[5];
 uint8_t pipe234_lsb[3];
 uint8_t transmit_address[5];
 uint8_t addr_width;
+pthread_t int_thread;
 /****************************************************************************/
   // Minimum ideal SPI bus speed is 2x data rate
   // If we assume 2Mbs data rate and 16Mhz clock, a
@@ -131,7 +133,6 @@ uint8_t write_register_bytes(uint8_t reg, const uint8_t* buf, uint8_t len) {
 
 uint8_t write_register(uint8_t reg, uint8_t value) {
   uint8_t status;
-  /* printf("write_register(%02x, %02x)\r\n", reg, value); */
   spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
   spi_transfer(spi, value, NULL);
@@ -406,6 +407,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Flush buffers
   flush_rx();
   flush_tx();
+  pthread_create(&int_thread, NULL, interrupt_wait, (void *)24);
   return 1;
 }
 

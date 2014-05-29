@@ -98,7 +98,6 @@ void setup(void) {
     rf24_setRXAddressOnPipe(address, 1);
     rf24_startListening();
     rf24_printDetails();
-    interrupt_wait(24);
 }
  
 void loop(void) {
