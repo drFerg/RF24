@@ -22,6 +22,7 @@ int interrupt_wait(int pin) {
 
     snprintf(fn, GPIO_FN_MAXLEN-1, "/sys/class/gpio/gpio%d/value", pin);
     gpio_open(pin, GPIO_IN);
+    gpio_enable_edge(pin, falling);
     fd = open(fn, O_RDONLY);
     if(fd < 0) {
         perror(fn);
