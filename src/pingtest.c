@@ -108,7 +108,7 @@ void loop(void) {
     }
 }
  
-int main(int argc, char** argv) {
+int main() {
     setup();
     while(1)
         loop();

@@ -281,10 +281,10 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * @param buf Pointer to a buffer where the data should be written
    * @param len Size of the buffer
-   * @param flags Specify attributes of recv((non)blocking)
+   * @param block Specify behaviour of recv((non)blocking)
    * @return length of payload received, -1 if corrupt
    */
-  uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags);
+  uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block);
 
   void rf24_autoACKPacket();
   /**

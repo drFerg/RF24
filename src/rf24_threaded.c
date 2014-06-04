@@ -26,6 +26,11 @@
 #define pipe0_is_set() (pipe0_status & 0x01)
 #define auto_ACK_occurred() (pipe0_status & 0x02)
 
+typedef struct packet {
+  uint8_t len;
+  uint8_t *payload;
+} Packet;
+
 SPIState *spi;
 uint8_t enable_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
 char *spidevice;
@@ -458,16 +463,11 @@ bool rf24_available(uint8_t* pipe_num) {
   return result;
 }
 
-uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags) {
-  uint8_t payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
-  if (payload_len > MAX_PAYLOAD_LEN){
-    flush_rx(); /* Invalid payload needs flushing */
-    return -1;
-  }
-  read_payload(buf, len, payload_len); /* Fetch the payload */
-  if (is_rx_fifo_empty()) /* Clear status bit if there are no more payloads */
-    write_register(STATUS, RX_DR);
-  return payload_len;
+uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
+  Packet * p = tsq_remove(packets, block);
+  if (p == NULL) return 0;
+  memcpy(buf, p->payload, (p->len > len ? len : p->len));
+  return p->len;
 }
 
 bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
@@ -666,15 +666,18 @@ int setup_isr_thread(int pin) {
 
 void retrieve_packets(){
   uint8_t payload_len;
-  uint8_t *payload;
+  Packet *packet;
   while (!is_rx_fifo_empty()){
     payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
     if (payload_len > MAX_PAYLOAD_LEN){
       flush_rx(); /* Invalid payload needs flushing */
+      continue;
     }
-    payload = (uint8_t *)malloc(payload_len);
-    read_payload(payload, payload_len, payload_len); /* Fetch the payload */
-    tsq_add(packets, payload, 0);
+    packet = (Packet*)malloc(sizeof(Packet));
+    packet->payload = (uint8_t *)malloc(payload_len);
+    packet->len = payload_len;
+    read_payload(packet->payload, payload_len, payload_len); /* Fetch the payload */
+    tsq_add(packets, packet, 0);
   }
   /* Clear status bit if there are no more payloads */
   write_register(STATUS, RX_DR);
