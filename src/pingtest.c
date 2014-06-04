@@ -101,11 +101,9 @@ void setup(void) {
 }
  
 void loop(void) {
-    while (rf24_available(NULL)) {
-        len = rf24_recv(receivePayload, len, 0);
-        // display payload
-        printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
-    }
+    len = rf24_recv(receivePayload, len, 1);
+    // display payload
+    printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
 }
  
 int main() {
