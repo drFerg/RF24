@@ -1,11 +1,3 @@
-/*
- Copyright (C) 2011 J. Coliz <maniacbug@ymail.com>
-
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
- */
-
 #include <pthread.h>
 #include "nRF24L01.h"
 #include "RF24_config.h"
@@ -618,7 +610,6 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
     uint8_t* bufptr = buffer + sizeof(buffer);
     while(--bufptr >= buffer) printf("%02x", *bufptr);
   }
-
   printf("\r\n");
 }
 
