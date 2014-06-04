@@ -685,7 +685,7 @@ void retrieve_packets(){
     }
     packet->len = payload_len;
     read_payload(packet->payload, payload_len, payload_len); /* Fetch the payload */
-    tsq_add(packets, packet, 0);
+    tsq_add(packets, packet, 0); /* Don't block, if the q is full it's dropped */
   }
   /* Clear status bit if there are no more payloads */
   write_register(STATUS, RX_DR);
