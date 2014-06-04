@@ -724,7 +724,6 @@ void *radio_isr_thread() {
       perror("read()");
       return (void *)4;
     }
-    printf("interrupt, value is: %s\n", rdbuf);
     process_radio_interrupt();
   }
   close(fd);
