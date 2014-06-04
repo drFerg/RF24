@@ -6,6 +6,11 @@
 /* GPIO pin values */
 #define GPIO_LOW 0
 #define GPIO_HIGH 1
+/* GPIO interrupt edges */
+#define GPIO_NO_EDGE 0
+#define GPIO_FALLING_EDGE 1
+#define GPIO_RISING_EDGE 2
+#define GPIO_BOTH_EDGES 3
 
 /* Opens the specified port as an input or output
  * returns 1 if successful, 0 otherwise */

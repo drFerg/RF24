@@ -11,7 +11,7 @@
 #define POLL_TIMEOUT    1000
 #define RDBUF_LEN   5
 
-int interrupt_wait(void *port) {
+void *interrupt_wait(void *port) {
     char fn[GPIO_FN_MAXLEN];
     int fd,ret;
     struct pollfd pfd;
