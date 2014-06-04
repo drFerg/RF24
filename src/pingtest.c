@@ -101,7 +101,7 @@ void setup(void) {
 }
  
 void loop(void) {
-    memset(receivePayload, "\0", 32);
+    memset(receivePayload, '\0', 32);
     len = rf24_recv(receivePayload, len, 1);
     // display payload
     printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
