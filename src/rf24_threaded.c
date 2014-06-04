@@ -468,9 +468,10 @@ uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   Packet * p = tsq_remove(packets, block);
   if (p == NULL) return 0;
   memcpy(buf, p->payload, (p->len > len ? len : p->len));
+  uint8_t p_len = p->len;
   free(p->payload);
   free(p);
-  return p->len;
+  return p_len;
 }
 
 bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
