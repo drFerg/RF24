@@ -468,6 +468,8 @@ uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   Packet * p = tsq_remove(packets, block);
   if (p == NULL) return 0;
   memcpy(buf, p->payload, (p->len > len ? len : p->len));
+  free(p->payload);
+  free(p);
   return p->len;
 }
 
@@ -675,7 +677,12 @@ void retrieve_packets(){
       continue;
     }
     packet = (Packet*)malloc(sizeof(Packet));
+    if (packet == NULL) return;
     packet->payload = (uint8_t *)malloc(payload_len);
+    if && (packet->payload == NULL)) {
+      free(packet);
+      return;
+    }
     packet->len = payload_len;
     read_payload(packet->payload, payload_len, payload_len); /* Fetch the payload */
     tsq_add(packets, packet, 0);
