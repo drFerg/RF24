@@ -17,6 +17,7 @@
 #define POLL_TIMEOUT    1000
 #define RDBUF_LEN   5
 #define PACKET_BUFFER_SIZE 10
+#define ISR_PIN 24
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
@@ -99,7 +100,7 @@ static const uint8_t pipe_payload_len[] PROGMEM = {
 static const uint8_t pipe_enable[] PROGMEM = {
   ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5
 };
-void *radio_isr_thread(void * port);
+void *radio_isr_thread();
 
 uint8_t * reverse_address(uint8_t *address){
   uint8_t i = 0, j = addr_width - 1, temp = 0;
@@ -418,7 +419,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Flush buffers
   flush_rx();
   flush_tx();
-  pthread_create(&int_thread, NULL, radio_isr_thread, (void *)24);
+  pthread_create(&int_thread, NULL, radio_isr_thread, NULL);
   packets = tsq_create(PACKET_BUFFER_SIZE);
   return 1;
 }
@@ -689,11 +690,11 @@ void process_radio_interrupt() {
   if (pkt_avail) retrieve_packets();
 }
 
-void *radio_isr_thread(void *port) {
+void *radio_isr_thread() {
   int fd, result;
   struct pollfd pfd;
   char rdbuf[RDBUF_LEN];
-  fd = setup_isr_thread(*((int*)port));
+  fd = setup_isr_thread(ISR_PIN);
   if (fd < 0) {
     perror("gpio_file");
     return (void *)-1;
