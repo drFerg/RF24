@@ -679,7 +679,7 @@ void retrieve_packets(){
     packet = (Packet*)malloc(sizeof(Packet));
     if (packet == NULL) return;
     packet->payload = (uint8_t *)malloc(payload_len);
-    if && (packet->payload == NULL)) {
+    if (packet->payload == NULL) {
       free(packet);
       return;
     }
