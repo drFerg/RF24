@@ -273,6 +273,10 @@ void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
   if (pipe == 0){ /* cache pipe0 address as ackWrites overwrite this */
     pipe0_status = PIPE0_SET;
     memcpy(pipe0_address, address, addr_width);
+  } else if (pipe == 1) {
+    memcpy(pipe1_address, address, addr_width);
+  } else {
+    memcpy(pipe234_lsb, address, 1);
   }
   switch(pipe){ /* For pipes 2-5, only write the last byte */
     case(0):
@@ -519,17 +523,13 @@ uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
   return p_len;
 }
 
-bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
-  bool tx_ok = FALSE;
+void rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
   RF24Payload p;
-  memcpy(p.from, pipe0_address, ADDR_WIDTH);
+  memcpy(p.from, pipe1_address, ADDR_WIDTH);
   memcpy(p.payload, buf, len);
   /* Check if address already set, saves an SPI call */
   if (memcmp(addr, transmit_address, addr_width)) setTXAddress(addr);
   transmit_payload(&p, ADDR_WIDTH + len);
-  rf24_getStatus(&tx_ok, NULL, NULL); /* Only interested in if it was tx'd */
-  printf("TX: %s\n", (tx_ok ? "successful" : "failed"));
-  return tx_ok;
 }
 
 bool rf24_write(const void* buf, uint8_t len) {

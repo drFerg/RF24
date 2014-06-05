@@ -129,7 +129,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
   uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block);
   uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block);
 
-  bool rf24_send(uint8_t *addr, const void* buf, uint8_t len);
+  void rf24_send(uint8_t *addr, const void* buf, uint8_t len);
   
   void rf24_autoACKPacket();
 
