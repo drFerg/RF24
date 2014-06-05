@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "RF24.h"
+#include "rf24.h"
 #include "interrupts.h"
 
 uint8_t address[5] = {0xF0, 0xF0, 0xF0, 0xF0, 0xE1};

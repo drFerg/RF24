@@ -28,23 +28,19 @@ endif
 all: librf24
 
 # Make the library
-librf24: gpio.o RF24.o spi.o compatibility.o
+librf24: gpio.o rf24.o spi.o compatibility.o
 	g++ -shared -Wl,-soname,librf24.so.1 ${CCFLAGS} -o ${LIBNAME} compatibility.o gpio.o spi.o RF24.o
 
 # Library parts
-RF24.o: RF24.c RF24.h spi.h gpio.h
-rf24_threaded.o: rf24_threaded.c rf24_threaded.h tsqueue.o
+rf24.o: rf24.c rf24.h spi.h gpio.h tsqueue.o
 queue.o: queue.c queue.h
 tsqueue.o: tsqueue.c tsqueue.h queue.o
 gpio.o: gpio.c gpio.h
 spi.o: spi.c spi.h
 interrupts.o: interrupts.c interrupts.h
 
-pingtest: pingtest.c RF24.o spi.o gpio.o compatibility.o interrupts.o
-	gcc ${CFLAGS} pingtest.c RF24.o spi.o gpio.o compatibility.o interrupts.o -o pingtest 
-
-tpingtest: pingtest.c rf24_threaded.o spi.o gpio.o compatibility.o tsqueue.o queue.o
-	gcc ${CFLAGS} pingtest.c rf24_threaded.o spi.o gpio.o compatibility.o tsqueue.o queue.o -o pingtest 
+pingtest: pingtest.c rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o
+	gcc ${CFLAGS} pingtest.c rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o -o pingtest 
 
 
 compatibility.o: compatibility.c compatibility.h

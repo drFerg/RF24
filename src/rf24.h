@@ -7,7 +7,7 @@
  */
 
 /**
- * @file RF24.h
+ * @file rf24.h
  *
  * Class declaration for RF24 and helper enums
  */
