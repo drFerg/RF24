@@ -15,8 +15,6 @@
 #ifndef __RF24_H__
 #define __RF24_H__
 
-#include "RF24_config.h"
-//#include "lib/RF24/compatibility.h"
 #include "compatibility.h"
 
 typedef uint8_t bool;

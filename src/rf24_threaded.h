@@ -14,9 +14,13 @@
 
 #ifndef RF24_H
 #define RF24_H
+#include <stdint.h>
 
-#include "RF24_config.h"
-#include "compatibility.h"
+#if DEBUG
+#define DEBUG_PRINT(_print) _print
+#else 
+#define DEBUG_PRINT(_print)
+#endif
 
 typedef uint8_t bool;
 #define TRUE 1

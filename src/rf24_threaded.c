@@ -7,9 +7,10 @@
 #include <unistd.h>
 #include "rf24_threaded.h"
 #include "gpio.h"
+#include "spi.h"
 #include "nRF24L01.h"
-#include "RF24_config.h"
 #include "tsqueue.h"
+#include "compatibility.h"
 
 #define SPI_BITS 8
 #define SPI_MODE 0
@@ -58,46 +59,46 @@ TSQueue *packets;
   // divider of 4 is the minimum we want.
   // CLK:BUS 8Mhz:2Mhz, 16Mhz:4Mhz, or 20Mhz:5Mhz
 
-static const char rf24_datarate_e_str_0[] PROGMEM = "1MBPS";
-static const char rf24_datarate_e_str_1[] PROGMEM = "2MBPS";
-static const char rf24_datarate_e_str_2[] PROGMEM = "250KBPS";
-static const char * const rf24_datarate_e_str_P[] PROGMEM = {
+static const char rf24_datarate_e_str_0[] = "1MBPS";
+static const char rf24_datarate_e_str_1[] = "2MBPS";
+static const char rf24_datarate_e_str_2[] = "250KBPS";
+static const char * const rf24_datarate_e_str_P[] = {
   rf24_datarate_e_str_0, 
   rf24_datarate_e_str_1, 
   rf24_datarate_e_str_2, 
 };
-static const char rf24_model_e_str_0[] PROGMEM = "nRF24L01";
-static const char rf24_model_e_str_1[] PROGMEM = "nRF24L01+";
-static const char * const rf24_model_e_str_P[] PROGMEM = {
+static const char rf24_model_e_str_0[] = "nRF24L01";
+static const char rf24_model_e_str_1[] = "nRF24L01+";
+static const char * const rf24_model_e_str_P[] = {
   rf24_model_e_str_0, 
   rf24_model_e_str_1, 
 };
-static const char rf24_crclength_e_str_0[] PROGMEM = "Disabled";
-static const char rf24_crclength_e_str_1[] PROGMEM = "8 bits";
-static const char rf24_crclength_e_str_2[] PROGMEM = "16 bits";
-static const char * const rf24_crclength_e_str_P[] PROGMEM = {
+static const char rf24_crclength_e_str_0[] = "Disabled";
+static const char rf24_crclength_e_str_1[] = "8 bits";
+static const char rf24_crclength_e_str_2[] = "16 bits";
+static const char * const rf24_crclength_e_str_P[] = {
   rf24_crclength_e_str_0, 
   rf24_crclength_e_str_1, 
   rf24_crclength_e_str_2, 
 };
-static const char rf24_pa_dbm_e_str_0[] PROGMEM = "PA_MIN";
-static const char rf24_pa_dbm_e_str_1[] PROGMEM = "PA_GPIO_LOW";
-static const char rf24_pa_dbm_e_str_2[] PROGMEM = "PA_GPIO_HIGH";
-static const char rf24_pa_dbm_e_str_3[] PROGMEM = "PA_MAX";
-static const char * const rf24_pa_dbm_e_str_P[] PROGMEM = { 
+static const char rf24_pa_dbm_e_str_0[] = "PA_MIN";
+static const char rf24_pa_dbm_e_str_1[] = "PA_GPIO_LOW";
+static const char rf24_pa_dbm_e_str_2[] = "PA_GPIO_HIGH";
+static const char rf24_pa_dbm_e_str_3[] = "PA_MAX";
+static const char * const rf24_pa_dbm_e_str_P[] = { 
   rf24_pa_dbm_e_str_0, 
   rf24_pa_dbm_e_str_1, 
   rf24_pa_dbm_e_str_2, 
   rf24_pa_dbm_e_str_3, 
 };
 
-static const uint8_t pipe_addr[] PROGMEM = {
+static const uint8_t pipe_addr[] = {
   RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5
 };
-static const uint8_t pipe_payload_len[] PROGMEM = {
+static const uint8_t pipe_payload_len[] = {
   RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5
 };
-static const uint8_t pipe_enable[] PROGMEM = {
+static const uint8_t pipe_enable[] = {
   ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5
 };
 void *radio_isr_thread();
@@ -221,7 +222,7 @@ void transmit_payload(const void* buf, uint8_t len) {
   write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX)); /* Toggle RX/TX mode */
   write_payload(buf, len); /* Write the payload to the TX FIFO */
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
-  delayMicroseconds(WRITE_DELAY);
+  microSleep(WRITE_DELAY);
   disable_radio();
 }
 
@@ -388,7 +389,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Enabling 16b CRC is by far the most obvious case if the wrong timing is used - or skipped.
   // Technically we require 4.5ms + 14us as a worst case. We'll just call it 5ms for good measure.
   // WARNING: Delay is based on P-variant whereby non-P *may* require different timing.
-  delay(5);
+  milliSleep(5);
   // Set 1500uS (minimum for 32B payload in ESB@250KBPS) timeouts, to make testing a little easier
   // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet
   // sizes must never be used. See documentation for a more complete explanation.
@@ -445,7 +446,7 @@ void rf24_startListening() {
   if (PIPE0_SET && PIPE0_AUTO_ACKED) 
     write_register_bytes(RX_ADDR_P0, reverse_address(pipe0_address), addr_width);
   enable_radio();
-  delayMicroseconds(LISTEN_DELAY); /* wait for the radio to come up */
+  microSleep(LISTEN_DELAY); /* wait for the radio to come up */
 }
 
 void rf24_stopListening() {
@@ -456,12 +457,12 @@ void rf24_stopListening() {
 
 void rf24_powerDown() {
   write_register(CONFIG, (read_register(CONFIG) & ~PWR_UP));
-  delayMicroseconds(POWER_DOWN_DELAY);
+  microSleep(POWER_DOWN_DELAY);
 }
 
 void rf24_powerUp() {
   write_register(CONFIG, (read_register(CONFIG) | PWR_UP));
-  delayMicroseconds(POWER_UP_DELAY);
+  microSleep(POWER_UP_DELAY);
 }
 
 bool rf24_available(uint8_t* pipe_num) {
@@ -500,14 +501,14 @@ bool rf24_write(const void* buf, uint8_t len) {
 
   uint8_t observe_tx;
   uint8_t status;
-  uint32_t sent_at = __millis();
+  uint32_t sent_at = millis();
   const uint32_t timeout = 500; //ms to wait for timeout
   do
   {
     status = read_register_bytes(OBSERVE_TX, &observe_tx, 1);
-    IF_SERIAL_DEBUG(printf("%x", observe_tx));
+    DEBUG_PRINT(printf("%x", observe_tx));
   }
-  while(! (status & (TX_DS | MAX_RT)) && (__millis() - sent_at < timeout));
+  while(! (status & (TX_DS | MAX_RT)) && (millis() - sent_at < timeout));
 
   bool tx_ok, tx_fail;
   rf24_getStatus(&tx_ok, &tx_fail, &ack_payload_available);
@@ -515,13 +516,13 @@ bool rf24_write(const void* buf, uint8_t len) {
   //printf("%u%u%u\r\n", tx_ok, tx_fail, ack_payload_available);
 
   result = tx_ok;
-  IF_SERIAL_DEBUG(printf("%s\n", result ? "...OK." : "...Failed"));
+  DEBUG_PRINT(printf("%s\n", result ? "...OK." : "...Failed"));
 
   // Handle the ack packet
   if (ack_payload_available) {
     ack_payload_length = get_dyn_payload_len();
-    IF_SERIAL_DEBUG(printf("[AckPacket]/"));
-    IF_SERIAL_DEBUG(printf("%i\n", ack_payload_length));
+    DEBUG_PRINT(printf("[AckPacket]/"));
+    DEBUG_PRINT(printf("%i\n", ack_payload_length));
   }
   return result;
 }
@@ -573,7 +574,7 @@ void rf24_enableAckPayload() {
       write_register(FEATURE, (EN_ACK_PAY | EN_DPL));
     }
   }
-  IF_SERIAL_DEBUG(printf("FEATURE=%i\r\n", read_register(FEATURE)));
+  DEBUG_PRINT(printf("FEATURE=%i\r\n", read_register(FEATURE)));
   /* Enable dynamic payload on pipes 0 */
   write_register(DYNPD, (read_register(DYNPD) | DPL_P0));
 }
@@ -652,10 +653,10 @@ void rf24_printDetails() {
   printf("SPI device\t = %s\r\n", spidevice);
   printf("SPI speed\t = %d\r\n", spispeed);
   printf("CE GPIO\t = %d\r\n", enable_pin);
-  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
-  printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
-  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
+  printf("Data Rate\t = %s\r\n", rf24_datarate_e_str_P[rf24_getDataRate()]);
+  printf("Model\t\t = %s\r\n", rf24_model_e_str_P[isPVariant()]);
+  printf("CRC Length\t = %s\r\n", rf24_crclength_e_str_P[rf24_getCRCLength()]);
+  printf("PA Power\t = %s\r\n", rf24_pa_dbm_e_str_P[rf24_getPALevel()]);
   print_status(check_status());
   print_address_register("RX_ADDR_P0-1", RX_ADDR_P0, 2);
   print_byte_register("RX_ADDR_P2-5", RX_ADDR_P2);
