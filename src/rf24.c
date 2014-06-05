@@ -236,6 +236,7 @@ void transmit_payload(const void* buf, uint8_t len) {
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
   microSleep(WRITE_DELAY);
   disable_radio();
+  microSleep(TRANSITION_DELAY); /* Let the transition to Standby mode settle */
   if (listening) rf24_startListening();
 }
 
