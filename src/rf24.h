@@ -103,9 +103,13 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
   /**
    * Test whether there are bytes available to be read
    *
-   * @return True if there is a payload available, false if none is
+   * @return True if there is a payload available on the radio, false if none is
    */
   bool rf24_available();
+  
+  /* Check whether there is a packet available in the packet buffer */
+  bool rf24_packetAvailable();
+
 
   /**
    * Read the payload

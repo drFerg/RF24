@@ -489,6 +489,10 @@ bool rf24_available(uint8_t* pipe_num) {
   return result;
 }
 
+bool rf24_packetAvailable(){
+  return tsq_count(packets) > 0;
+}
+
 uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   Packet * p = tsq_remove(packets, block);
   if (p == NULL) return 0; /* No packet available (nonblocking) */
