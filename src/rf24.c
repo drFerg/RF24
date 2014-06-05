@@ -371,16 +371,7 @@ uint8_t rf24_getPayloadSize() {
   return payload_len;
 }
 
-uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
-  // Initialize pins
-  spidevice = spi_device;
-  spispeed = spi_speed;
-  enable_pin = cepin;
-  chip_select = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
-  gpio_open(enable_pin, GPIO_OUT);
-
-  spi = spi_init(spidevice, SPI_MODE, SPI_BITS, spispeed, chip_select);
-  if (spi == NULL) return 0;
+void setDefaults() {
   disable_radio();
 
   // Must allow the radio time to settle else configuration bits will not necessarily stick.
@@ -430,6 +421,19 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Flush buffers
   flush_rx();
   flush_tx();
+}
+
+uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
+  // Initialize pins
+  spidevice = spi_device;
+  spispeed = spi_speed;
+  enable_pin = cepin;
+  chip_select = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
+  gpio_open(enable_pin, GPIO_OUT);
+
+  spi = spi_init(spidevice, SPI_MODE, SPI_BITS, spispeed, chip_select);
+  if (spi == NULL) return 0;
+  setDefaults();
   pthread_create(&int_thread, NULL, radio_isr_thread, NULL);
   packets = tsq_create(PACKET_BUFFER_SIZE);
   return 1;
@@ -437,6 +441,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
 
 void rf24_resetcfg(){
   write_register(CONFIG, RST_CFG);
+  setDefaults();
 }
 
 void rf24_startListening() {
