@@ -231,12 +231,12 @@ uint8_t get_dyn_payload_len() {
 void transmit_payload(const void* buf, uint8_t len) {
   if (listening) disable_radio();
   write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX)); /* Toggle RX/TX mode */
-  microSleep(130);
+  microSleep(TRANSITION_DELAY); /* Let the transition to TX mode settle */
   write_payload(buf, len); /* Write the payload to the TX FIFO */
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
   microSleep(WRITE_DELAY);
-  if (listening)  write_register(CONFIG, (read_register(CONFIG) | PRIM_RX));
-  else disable_radio();
+  disable_radio();
+  if (listening) rf24_startListening();
 }
 
 /*********************/
@@ -465,7 +465,7 @@ void rf24_startListening() {
   if (PIPE0_SET && PIPE0_AUTO_ACKED) 
     write_register_bytes(RX_ADDR_P0, reverse_address(pipe0_address), addr_width);
   enable_radio();
-  microSleep(LISTEN_DELAY); /* wait for the radio to come up */
+  microSleep(TRANSITION_DELAY); /* wait for the radio to come up */
   listening = TRUE;
 }
 
