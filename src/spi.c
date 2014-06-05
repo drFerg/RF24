@@ -8,6 +8,7 @@
 #include <inttypes.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
+#include <pthread.h>
 #include "gpio.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -25,6 +26,7 @@ typedef struct spi_state {
 	uint8_t bits;
 	int fd;
 	uint8_t chip_select;
+	pthread_mutex_t lock;
 } SPIState;
 
 SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed, uint8_t chip_select) {
@@ -76,11 +78,14 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed, ui
 	}
 	gpio_open(spi->chip_select, GPIO_OUT);
 	spi_disable(spi); /* Ensures chip select is pulled up */
+	pthread_mutex_init(&(spi->lock), NULL);
 	return spi;
 }
 
 void spi_enable(SPIState *spi){
+	pthread_mutex_lock(&(spi->lock));
 	gpio_write(spi->chip_select, GPIO_LOW);
+	pthread_mutex_unlock(&(spi->lock));
 }
 
 uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
@@ -88,6 +93,7 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		perror("ERROR: NULL spi state");
 		return 0;
 	}
+	pthread_mutex_lock(&(spi->lock));
 	int ret;
 	uint8_t tx[BUF_LEN] = {val};
 	uint8_t rx_val[BUF_LEN] = {0};
@@ -106,14 +112,19 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		return 0;		
 	}
 	if (rx != NULL) memcpy(rx, rx_val, 1);
+	pthread_mutex_unlock(&(spi->lock));
 	return 1;
 }
 
 void spi_disable(SPIState *spi){
+	pthread_mutex_lock(&(spi->lock));
 	gpio_write(spi->chip_select, GPIO_HIGH);
+	pthread_mutex_unlock(&(spi->lock));
 }
 
 void spi_close(SPIState *spi){
+	pthread_mutex_lock(&(spi->lock));
 	close(spi->fd);
+	pthread_mutex_unlock(&(spi->lock));
 }
 
