@@ -34,12 +34,12 @@
 typedef struct packet {
   uint8_t len;
   uint8_t from[ADDR_WIDTH];
-  uint8_t *payload;
+  uint8_t payload[];
 } Packet;
 
 typedef struct rf24_packet {
   uint8_t from[ADDR_WIDTH];
-  uint8_t *payload;
+  uint8_t payload[];
 } RF24Payload;
 
 SPIState *spi;
@@ -494,7 +494,6 @@ uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   if (p == NULL) return 0; /* No packet available (nonblocking) */
   memcpy(buf, p->payload, (p->len > len ? len : p->len));
   uint8_t p_len = p->len; /* Save len whilst we free the memory */
-  free(p->payload);
   free(p);
   return p_len;
 }

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include "compatibility.h"
 #include "rf24.h"
 
 uint8_t address[5] = {0xF0, 0xF0, 0xF0, 0xF0, 0xE1};
@@ -98,12 +99,13 @@ void setup(void) {
 void loop(void) {
     memset(receivePayload, '\0', 32);
     len = rf24_recv(receivePayload, len, 1); /* Blocking recv */
-    printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
+    printf("Recvd pkt - len: %d : %d\n", len, receivePayload[0]);
 }
  
 int main() {
     setup();
     while(1)
+        milliSleep(5000);
         loop();
     return 0;
 }
