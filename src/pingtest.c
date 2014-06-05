@@ -3,7 +3,7 @@
 #include "RF24.h"
 #include "interrupts.h"
 
-uint8_t address[5] = {0xF0,0xF0,0xF0,0xF0,0xE1};
+uint8_t address[5] = {0xF0, 0xF0, 0xF0, 0xF0, 0xE1};
 /* 32 byte character array is max payload */
 char receivePayload[32];
 uint8_t len;
@@ -89,12 +89,6 @@ void setup(void) {
     rf24_resetcfg();
     rf24_enableDynamicPayloads();
     rf24_setAutoAckOnPipe(1, 0);
-    rf24_setRetries(15,15);
-    rf24_setDataRate(RF24_1MBPS);
-    rf24_setPALevel(RF24_PA_MAX);
-    rf24_setChannel(76);
-    rf24_setCRCLength(RF24_CRC_16);
-    rf24_setAddressWidth(5);
     rf24_setRXAddressOnPipe(address, 1);
     rf24_startListening();
     rf24_printDetails();
@@ -102,8 +96,7 @@ void setup(void) {
  
 void loop(void) {
     memset(receivePayload, '\0', 32);
-    len = rf24_recv(receivePayload, len, 1);
-    // display payload
+    len = rf24_recv(receivePayload, len, 1); /* Blocking recv */
     printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
 }
  

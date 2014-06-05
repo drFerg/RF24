@@ -102,16 +102,6 @@ static const uint8_t pipe_enable[] PROGMEM = {
 };
 void *radio_isr_thread();
 
-uint8_t * reverse_address(uint8_t *address){
-  uint8_t i = 0, j = addr_width - 1, temp = 0;
-  while (i < j){
-    temp = address[i];
-    address[i++] = address[j];
-    address[j--] = temp;
-  }
-  return address;
-}
-
 /***********************/
 /* Register functions  */
 /***********************/
@@ -235,6 +225,30 @@ void transmit_payload(const void* buf, uint8_t len) {
   disable_radio();
 }
 
+/*********************/
+/* Address functions */
+/*********************/
+uint8_t *reverse_address(uint8_t *address){
+  uint8_t i = 0, j = addr_width - 1, temp = 0;
+  while (i < j){
+    temp = address[i];
+    address[i++] = address[j];
+    address[j--] = temp;
+  }
+  return address;
+}
+
+uint8_t rf24_setAddressWidth(uint8_t address_width){
+  if (address_width > MAX_ADDR_WIDTH || address_width < MIN_ADDR_WIDTH) return 0;
+  write_register(AW, address_width);
+  addr_width = address_width;
+  return addr_width;
+}
+
+uint8_t rf24_getAddressWidth(){
+  return read_register(AW);
+}
+
 void setTXAddress(uint8_t *addr) {
   memcpy(transmit_address, addr, addr_width);
   write_register_bytes(TX_ADDR, reverse_address(transmit_address), addr_width);
@@ -254,6 +268,10 @@ void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
   write_register(pipe_payload_len[pipe], payload_len); /* Set payload len and enable */
   write_register(EN_RXADDR, (read_register(EN_RXADDR) | pipe_enable[pipe]));
 }
+
+/***************************/
+/* TX Rate/Power functions */
+/***************************/
 
 void rf24_setDataRate(rf24_datarate_e speed) {
   uint8_t setup = read_register(RF_SETUP);
@@ -307,6 +325,10 @@ rf24_pa_dbm_e rf24_getPALevel() {
   }
 }
 
+/*****************/
+/* CRC Functions */
+/*****************/
+
 void rf24_setCRCLength(rf24_crclength_e length) {
   uint8_t config = read_register(CONFIG) & ~CRC_BITS; /* Clear CRC bits */
   switch(length){
@@ -315,10 +337,6 @@ void rf24_setCRCLength(rf24_crclength_e length) {
     case(RF24_CRC_16): config |= EN_CRC_16; break; /* Enable 16bit CRC */
   }
   write_register(CONFIG, config);
-}
-
-void rf24_disableCRC() {
-  rf24_setCRCLength(RF24_CRC_DISABLED);
 }
 
 rf24_crclength_e rf24_getCRCLength() {
@@ -336,17 +354,6 @@ bool isPVariant() {
 
 void rf24_setRetries(uint8_t delay, uint8_t count) {
  write_register(SETUP_RETR, (delay&0xf)<<ARD | (count&0xf)<<ARC);
-}
-
-uint8_t rf24_setAddressWidth(uint8_t address_width){
-  if (address_width > MAX_ADDR_WIDTH || address_width < MIN_ADDR_WIDTH) return 0;
-  write_register(AW, address_width);
-  addr_width = address_width;
-  return addr_width;
-}
-
-uint8_t rf24_getAddressWidth(){
-  return read_register(AW);
 }
 
 void rf24_setChannel(uint8_t channel) {
@@ -416,6 +423,9 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // spectrum.
   rf24_setChannel(76);
 
+  /* Set default address width to 5bytes */
+  rf24_setAddressWidth(5);
+
   // Flush buffers
   flush_rx();
   flush_tx();
@@ -466,9 +476,9 @@ bool rf24_available(uint8_t* pipe_num) {
 
 uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   Packet * p = tsq_remove(packets, block);
-  if (p == NULL) return 0;
+  if (p == NULL) return 0; /* No packet available (nonblocking) */
   memcpy(buf, p->payload, (p->len > len ? len : p->len));
-  uint8_t p_len = p->len;
+  uint8_t p_len = p->len; /* Save len whilst we free the memory */
   free(p->payload);
   free(p);
   return p_len;
