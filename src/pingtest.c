@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdint.h>
 #include "rf24.h"
-#include "interrupts.h"
 
 uint8_t address[5] = {0xF0, 0xF0, 0xF0, 0xF0, 0xE1};
 /* 32 byte character array is max payload */

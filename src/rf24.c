@@ -19,6 +19,9 @@
 #define RDBUF_LEN   5
 #define PACKET_BUFFER_SIZE 10
 #define ISR_PIN 24
+#ifndef ADDR_WIDTH
+#define ADDR_WIDTH 5
+#endif
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
@@ -30,8 +33,14 @@
 
 typedef struct packet {
   uint8_t len;
+  uint8_t from[ADDR_WIDTH];
   uint8_t *payload;
 } Packet;
+
+typedef struct rf24_packet {
+  uint8_t from[ADDR_WIDTH];
+  uint8_t *payload;
+} RF24Payload;
 
 SPIState *spi;
 uint8_t enable_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
@@ -490,6 +499,16 @@ uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   return p_len;
 }
 
+uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
+  Packet * p = tsq_remove(packets, block);
+  if (p == NULL) return 0; /* No packet available (nonblocking) */
+  memcpy(buf, p->payload, (p->len > len ? len : p->len));
+  memcpy(from, p->from, addr_width);
+  uint8_t p_len = p->len; /* Save len whilst we free the memory */
+  free(p);
+  return p_len;
+}
+
 bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
   bool tx_ok = FALSE;
   /* Check if address already set, saves an SPI call */
@@ -693,15 +712,12 @@ void retrieve_packets(){
       flush_rx(); /* Invalid payload needs flushing */
       continue;
     }
-    packet = (Packet*)malloc(sizeof(Packet));
+    packet = (Packet*)malloc(sizeof(Packet) + payload_len - ADDR_WIDTH);
     if (packet == NULL) return;
-    packet->payload = (uint8_t *)malloc(payload_len);
-    if (packet->payload == NULL) {
-      free(packet);
-      return;
-    }
     packet->len = payload_len;
-    read_payload(packet->payload, payload_len, payload_len); /* Fetch the payload */
+    read_payload(packet->from, payload_len, payload_len); /* Fetch the payload */
+    printf("Received a packet from: %d.%d.%d.%d.%d\n", 
+      packet->from[0], packet->from[1], packet->from[2], packet->from[3], packet->from[4]);
     tsq_add(packets, packet, 0); /* Don't block, if the q is full it's dropped */
   }
   /* Clear status bit if there are no more payloads */
