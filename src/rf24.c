@@ -59,6 +59,7 @@ uint8_t pipe1_address[5];
 uint8_t pipe234_lsb[3];
 uint8_t transmit_address[5];
 uint8_t addr_width;
+uint8_t listening;
 pthread_t int_thread;
 pthread_mutex_t radio_lock;
 TSQueue *packets;
@@ -232,7 +233,8 @@ void transmit_payload(const void* buf, uint8_t len) {
   write_payload(buf, len); /* Write the payload to the TX FIFO */
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
   microSleep(WRITE_DELAY);
-  disable_radio();
+  if (listening)  write_register(CONFIG, (read_register(CONFIG) | PRIM_RX));
+  else disable_radio();
 }
 
 /*********************/
@@ -430,6 +432,7 @@ void setDefaults() {
   // Flush buffers
   flush_rx();
   flush_tx();
+  listening = FALSE;
 }
 
 uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
@@ -461,12 +464,14 @@ void rf24_startListening() {
     write_register_bytes(RX_ADDR_P0, reverse_address(pipe0_address), addr_width);
   enable_radio();
   microSleep(LISTEN_DELAY); /* wait for the radio to come up */
+  listening = TRUE;
 }
 
 void rf24_stopListening() {
   disable_radio();
   flush_tx();
   flush_rx();
+  listening = FALSE;
 }
 
 void rf24_powerDown() {
@@ -514,9 +519,12 @@ uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
 
 bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
   bool tx_ok = FALSE;
+  RF24Payload p;
+  memcpy(p.from, addr, ADDR_WIDTH);
+  memcpy(p.payload, buf, len);
   /* Check if address already set, saves an SPI call */
   if (memcmp(addr, transmit_address, addr_width)) setTXAddress(addr);
-  transmit_payload(buf, len);
+  transmit_payload(&p, ADDR_WIDTH + len);
   rf24_getStatus(&tx_ok, NULL, NULL); /* Only interested in if it was tx'd */
   printf("TX: %s\n", (tx_ok ? "successful" : "failed"));
   return tx_ok;
@@ -731,6 +739,10 @@ void process_radio_interrupt() {
   bool tx_ok, tx_fail, pkt_avail;
   rf24_peekStatus(&tx_ok, &tx_fail, &pkt_avail);
   if (pkt_avail) retrieve_packets();
+  if (tx_ok) {
+    printf(">> TX successful\n");
+    write_register(STATUS, TX_DS);
+  }
 }
 
 void *radio_isr_thread() {

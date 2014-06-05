@@ -8,6 +8,7 @@
 uint8_t address[5] = {0xF0, 0xF0, 0xF0, 0xF0, 0xE1};
 /* 32 byte character array is max payload */
 char receivePayload[32];
+uint8_t receiveAddr[5];
 uint8_t len;
 
 typedef struct result {
@@ -99,8 +100,9 @@ void setup(void) {
 void loop(void) {
     while(rf24_packetAvailable()) {
         memset(receivePayload, '\0', 32);
-        len = rf24_recv(receivePayload, len, 1); /* Blocking recv */
+        len = rf24_recvfrom(receivePayload, len, receiveAddr, 1); /* Blocking recv */
         printf("Recvd pkt - len: %d : %d\n", len, receivePayload[0]);
+        rf24_send(receiveAddr, receivePayload, len);
     }
 }
  
