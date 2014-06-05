@@ -104,8 +104,9 @@ void loop(void) {
  
 int main() {
     setup();
-    while(1)
-        milliSleep(5000);
+    while(1) {
+        secSleep(5);
         loop();
+    }
     return 0;
 }

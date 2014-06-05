@@ -16,6 +16,11 @@ void microSleep(int millisec) {
 	nanosleep(&req, (struct timespec *)NULL);	
 }
 
+void secSleep(int sec){
+    struct timespec req = {.tv_sec = sec, .tv_nsec = 0};
+    nanosleep(&req, (struct timespec *)NULL);   
+}
+
 /**
  * This function is added in order to simulate arduino millis() function
  */

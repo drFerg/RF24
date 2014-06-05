@@ -14,6 +14,7 @@
 
 void milliSleep(int millisec);
 void microSleep(int millisec);
+void secSleep(int sec);
 void start_timer();
 long millis();
 
