@@ -229,7 +229,9 @@ uint8_t get_dyn_payload_len() {
 
 /* private function for transmitting packet */
 void transmit_payload(const void* buf, uint8_t len) {
+  if (listening) disable_radio();
   write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX)); /* Toggle RX/TX mode */
+  microSleep(130);
   write_payload(buf, len); /* Write the payload to the TX FIFO */
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
   microSleep(WRITE_DELAY);
@@ -520,7 +522,7 @@ uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
 bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
   bool tx_ok = FALSE;
   RF24Payload p;
-  memcpy(p.from, addr, ADDR_WIDTH);
+  memcpy(p.from, pipe0_address, ADDR_WIDTH);
   memcpy(p.payload, buf, len);
   /* Check if address already set, saves an SPI call */
   if (memcmp(addr, transmit_address, addr_width)) setTXAddress(addr);
