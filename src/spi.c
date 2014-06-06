@@ -85,7 +85,6 @@ SPIState *spi_init(char *device, uint32_t mode, uint8_t bits, uint32_t speed, ui
 void spi_enable(SPIState *spi){
 	pthread_mutex_lock(&(spi->lock));
 	gpio_write(spi->chip_select, GPIO_LOW);
-	pthread_mutex_unlock(&(spi->lock));
 }
 
 uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
@@ -93,7 +92,6 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		perror("ERROR: NULL spi state");
 		return 0;
 	}
-	pthread_mutex_lock(&(spi->lock));
 	int ret;
 	uint8_t tx[BUF_LEN] = {val};
 	uint8_t rx_val[BUF_LEN] = {0};
@@ -112,12 +110,10 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 		return 0;		
 	}
 	if (rx != NULL) memcpy(rx, rx_val, 1);
-	pthread_mutex_unlock(&(spi->lock));
 	return 1;
 }
 
 void spi_disable(SPIState *spi){
-	pthread_mutex_lock(&(spi->lock));
 	gpio_write(spi->chip_select, GPIO_HIGH);
 	pthread_mutex_unlock(&(spi->lock));
 }
