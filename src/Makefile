@@ -25,6 +25,8 @@ ifeq ($(platform), pi)
 	CCFLAGS+=-Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s
 endif
 
+OBJECTS = rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o rf24Stats.o
+
 all: librf24
 
 # Make the library
@@ -38,9 +40,10 @@ tsqueue.o: tsqueue.c tsqueue.h queue.o
 gpio.o: gpio.c gpio.h
 spi.o: spi.c spi.h
 interrupts.o: interrupts.c interrupts.h
+rf24Stats.o: rf24Stats.c rf24Stats.h
 
-pingtest: pingtest.c rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o
-	gcc ${CFLAGS} pingtest.c rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o -o pingtest 
+pingtest: pingtest.c ${OBJECTS}
+	gcc ${CFLAGS} pingtest.c ${OBJECTS} -o pingtest 
 
 
 compatibility.o: compatibility.c compatibility.h

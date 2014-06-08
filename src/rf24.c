@@ -11,6 +11,7 @@
 #include "nRF24L01.h"
 #include "tsqueue.h"
 #include "compatibility.h"
+#include "rf24Stats.h"
 
 #define SPI_BITS 8
 #define SPI_MODE 0
@@ -61,8 +62,9 @@ uint8_t transmit_address[5];
 uint8_t addr_width;
 uint8_t listening;
 pthread_t int_thread;
-pthread_mutex_t radio_lock;
+pthread_t stats_thread;
 TSQueue *packets;
+TXRXStats *stats;
 /****************************************************************************/
   // Minimum ideal SPI bus speed is 2x data rate
   // If we assume 2Mbs data rate and 16Mhz clock, a
@@ -453,6 +455,8 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   spi = spi_init(spidevice, SPI_MODE, SPI_BITS, spispeed, chip_select);
   if (spi == NULL) return 0;
   setDefaults();
+  stats = stats_create(1);
+  pthread_create(&stats_thread, NULL, stats_monitor_thread, (void *) stats);
   pthread_create(&int_thread, NULL, radio_isr_thread, NULL);
   packets = tsq_create(PACKET_BUFFER_SIZE);
   return 1;
@@ -531,6 +535,7 @@ void rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
   /* Check if address already set, saves an SPI call */
   if (memcmp(addr, transmit_address, addr_width)) setTXAddress(addr);
   transmit_payload(&p, ADDR_WIDTH + len);
+  stats_increment(stats, len, STATS_TX);
 }
 
 bool rf24_write(const void* buf, uint8_t len) {
@@ -579,6 +584,7 @@ void rf24_peekStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
   if (tx_fail) *tx_fail = status & MAX_RT;
   if (rx_ready) *rx_ready = status & RX_DR;
 }
+
 void rf24_autoACKPacket(){
     write_register_bytes(RX_ADDR_P0, reverse_address(transmit_address), addr_width);
     write_register(RX_PW_P0, (payload_len < MAX_PAYLOAD_LEN ? payload_len : MAX_PAYLOAD_LEN));
@@ -727,12 +733,11 @@ void retrieve_packets(){
       continue;
     }
     packet = (Packet*)malloc(sizeof(Packet) + payload_len - ADDR_WIDTH);
-    if (packet == NULL) return;
+    if (packet == NULL) return; /* Failing silently, probably need to tell someone about this */ 
     packet->len = payload_len;
     read_payload(packet->from, payload_len, payload_len); /* Fetch the payload */
-    printf("Received a packet from: %d.%d.%d.%d.%d\n", 
-      packet->from[0], packet->from[1], packet->from[2], packet->from[3], packet->from[4]);
     tsq_add(packets, packet, 0); /* Don't block, if the q is full it's dropped */
+    stats_increment(stats, payload_len - ADDR_WIDTH, STATS_RX);
   }
   /* Clear status bit if there are no more payloads */
   write_register(STATUS, RX_DR);
