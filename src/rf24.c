@@ -18,7 +18,7 @@
 #define GPIO_FILE_MAXLEN  32
 #define POLL_TIMEOUT    1000
 #define RDBUF_LEN   5
-#define PACKET_BUFFER_SIZE 100
+#define PACKET_BUFFER_SIZE 15
 #define ISR_PIN 24
 #ifndef ADDR_WIDTH
 #define ADDR_WIDTH 5
