@@ -18,6 +18,7 @@ typedef struct txrx_stats {
 TXRXStats *stats_create(uint8_t interval) {
     TXRXStats *s = (TXRXStats *)calloc(1, sizeof(TXRXStats));
     if (s == NULL) return NULL;
+    s->interval = interval;
     s->timer.tv_sec = interval;
     pthread_mutex_init(&(s->lock), NULL);
     return s;
