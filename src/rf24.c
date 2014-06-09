@@ -513,7 +513,7 @@ uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
   Packet * p = tsq_remove(packets, block);
   if (p == NULL) return 0; /* No packet available (nonblocking) */
   memcpy(buf, p->payload, (p->len > len ? len : p->len));
-  uint8_t p_len = p->len; /* Save len whilst we free the memory */
+  uint8_t p_len = p->len - ADDR_WIDTH; /* Save len whilst we free the memory */
   free(p);
   return p_len;
 }
@@ -523,7 +523,7 @@ uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
   if (p == NULL) return 0; /* No packet available (nonblocking) */
   memcpy(buf, p->payload, (p->len > len ? len : p->len));
   memcpy(from, p->from, addr_width);
-  uint8_t p_len = p->len; /* Save len whilst we free the memory */
+  uint8_t p_len = p->len - ADDR_WIDTH; /* Save len whilst we free the memory */
   free(p);
   return p_len;
 }
@@ -732,7 +732,7 @@ void retrieve_packets(){
       flush_rx(); /* Invalid payload needs flushing */
       continue;
     }
-    packet = (Packet*)malloc(sizeof(Packet) + payload_len - ADDR_WIDTH);
+    packet = (Packet*)malloc(sizeof(Packet) + (payload_len - ADDR_WIDTH));
     if (packet == NULL) return; /* Failing silently, probably need to tell someone about this */ 
     packet->len = payload_len;
     read_payload(packet->from, payload_len, payload_len); /* Fetch the payload */
