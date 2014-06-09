@@ -40,7 +40,7 @@ typedef struct packet {
 
 typedef struct rf24_packet {
   uint8_t from[ADDR_WIDTH];
-  uint8_t payload[];
+  uint8_t payload[MAX_PAYLOAD_LEN];
 } RF24Payload;
 
 SPIState *spi;

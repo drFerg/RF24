@@ -99,7 +99,7 @@ void setup(void) {
  
 void loop(void) {
     while(rf24_packetAvailable()) {
-        memset(receivePayload, '\0', 32);
+        memset(receivePayload, 0, 32);
         len = rf24_recvfrom(receivePayload, len, receiveAddr, 1); /* Blocking recv */
         printf("Recvd pkt - len: %d : %d\n", len, receivePayload[0]);
         rf24_send(receiveAddr, receivePayload, len);

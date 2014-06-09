@@ -56,7 +56,7 @@ void *stats_monitor_thread(void *stats) {
         s->bytes_tx = 0;
         s->bytes_rx = 0;
         t.tv_sec = s->timer.tv_sec;
-        printf("<TX RATE: %d bytes/s>\n<RX RATE: %d bytes/s>\n", s->tx_rate, s->rx_rate);
+        //printf("<TX RATE: %d bytes/s>\n<RX RATE: %d bytes/s>\n", s->tx_rate, s->rx_rate);
         pthread_mutex_unlock(&(s->lock));
         nanosleep(&t, (struct timespec *)NULL);
     }
