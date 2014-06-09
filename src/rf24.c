@@ -62,7 +62,6 @@ uint8_t transmit_address[5];
 uint8_t addr_width;
 uint8_t listening;
 pthread_t int_thread;
-pthread_t stats_thread;
 TSQueue *packets;
 TXRXStats *stats;
 /****************************************************************************/
@@ -456,7 +455,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   if (spi == NULL) return 0;
   setDefaults();
   stats = stats_create(1);
-  pthread_create(&stats_thread, NULL, stats_monitor_thread, (void *) stats);
+  stats_start_monitor(stats);
   pthread_create(&int_thread, NULL, radio_isr_thread, NULL);
   packets = tsq_create(PACKET_BUFFER_SIZE);
   return 1;

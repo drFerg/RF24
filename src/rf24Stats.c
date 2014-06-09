@@ -13,6 +13,7 @@ typedef struct txrx_stats {
   uint8_t interval;
   struct timespec timer;
   pthread_mutex_t lock;
+  pthread_t stats_thread;
 } TXRXStats;
 
 TXRXStats *stats_create(uint8_t interval) {
@@ -44,7 +45,7 @@ void stats_retrieve(TXRXStats *stats, uint32_t *tx_rate, uint32_t *rx_rate,
     pthread_mutex_unlock(&(stats->lock));
 }
 
-void *stats_monitor_thread(void *stats) {
+void *monitor_thread(void *stats) {
     TXRXStats *s = (TXRXStats *)stats;
     struct timespec t;
     for(;;) {
@@ -56,10 +57,14 @@ void *stats_monitor_thread(void *stats) {
         s->bytes_tx = 0;
         s->bytes_rx = 0;
         t.tv_sec = s->timer.tv_sec;
-        //printf("<TX RATE: %d bytes/s>\n<RX RATE: %d bytes/s>\n", s->tx_rate, s->rx_rate);
+        printf("<TX RATE: %d bytes/s>\n<RX RATE: %d bytes/s>\n", s->tx_rate, s->rx_rate);
         pthread_mutex_unlock(&(s->lock));
         nanosleep(&t, (struct timespec *)NULL);
     }
+}
+
+void stats_start_monitor(TXRXStats *stats) {
+    pthread_create(&(stats->stats_thread), NULL, monitor_thread, (void *) stats);
 }
 
 void stats_destroy(TXRXStats *stats){

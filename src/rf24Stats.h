@@ -14,7 +14,7 @@ void stats_increment(TXRXStats *stats, uint8_t bytes, uint8_t io);
 void stats_retrieve(TXRXStats *stats, uint32_t *tx_rate, uint32_t *rx_rate, 
                     uint64_t *total_bytes_tx, uint64_t *total_bytes_rx);
 
-void *stats_monitor_thread(void *stats);
+void stats_start_monitor(TXRXStats *stats);
 
 void stats_destroy(TXRXStats *stats);
 
