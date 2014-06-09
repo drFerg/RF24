@@ -113,6 +113,32 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 	return 1;
 }
 
+uint8_t spi_transfer_bulk(SPIState *spi, uint8_t *tx, uint8_t *rx, uint8_t len) {
+	if (spi == NULL) {
+		perror("ERROR: NULL spi state");
+		return 0;
+	}
+	int ret;
+	uint8_t rx_val[len];
+	memset(rx_val, 0, len);
+	struct spi_ioc_transfer tr;
+	tr.tx_buf = (unsigned long)tx;
+	tr.rx_buf = (unsigned long)rx_val;
+	tr.len = len;
+	tr.delay_usecs = 0;
+	tr.cs_change = 0;
+	tr.speed_hz = spi->speed;
+	tr.bits_per_word = spi->bits;
+
+	ret = ioctl(spi->fd, SPI_IOC_MESSAGE(1), &tr);
+	if (ret < 1) {
+		perror("ERROR: can't send spi message");
+		return 0;		
+	}
+	if (rx != NULL) memcpy(rx, rx_val, len);
+	return 1;
+}
+
 void spi_disable(SPIState *spi){
 	gpio_write(spi->chip_select, GPIO_HIGH);
 	pthread_mutex_unlock(&(spi->lock));
