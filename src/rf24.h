@@ -25,6 +25,10 @@
 typedef uint8_t bool;
 #define TRUE 1
 #define FALSE 0
+
+#ifndef ADDR_WIDTH
+#define ADDR_WIDTH 5
+#endif
 /**
  * Power Amplifier level.
  *
@@ -118,9 +122,6 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
    *
    * The size of data read is the fixed payload size, see getPayloadSize()
    *
-   * @note I specifically chose 'void*' as a data type to make it easier
-   * for beginners to use.  No casting needed.
-   *
    * @param buf Pointer to a buffer where the data should be written
    * @param len Size of the buffer
    * @param block Specify behaviour of recv((non)blocking)
@@ -129,7 +130,7 @@ typedef enum { RF24_CRC_DISABLED = 0, RF24_CRC_8, RF24_CRC_16 } rf24_crclength_e
   uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block);
   uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block);
 
-  void rf24_send(uint8_t *addr, const void* buf, uint8_t len);
+  int rf24_send(uint8_t *addr, const void* buf, uint8_t len);
   
   void rf24_autoACKPacket();
 

@@ -3,23 +3,17 @@
 # Makefile for librf24 on Raspberry Pi
 #
 # License: GPL (General Public License)
-# Author:  gnulnulf <arco@appeltaart.mine.nu>
-# Date:    2013/02/07 (version 1.0)
-#
-# Description:
-# ------------
-# use make all and mak install to install the library 
-# You can change the install directory by editing the LIBDIR line
+# Author:  Fergus Leahy <fergus.leahy@gmail.com>
+# Date:    25/09/2014 (version 1.0)
 #
 LIBDIR=/usr/local/lib
 LIBNAME=librf24.so.1.0
 
 
 # The recommended compiler flags for the Raspberry Pi
-
-
 CCFLAGS= -Wall -W -fPIC
 CFLAGS= -Wall -W -fPIC -g -pthread
+
 # make all
 ifeq ($(platform), pi)
 	CCFLAGS+=-Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s
@@ -27,11 +21,13 @@ endif
 
 OBJECTS = rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o rf24Stats.o
 
-all: librf24
+all: pingtest
 
-# Make the library
-librf24: gpio.o rf24.o spi.o compatibility.o
-	g++ -shared -Wl,-soname,librf24.so.1 ${CCFLAGS} -o ${LIBNAME} compatibility.o gpio.o spi.o RF24.o
+lib: all
+	rm -f librf24.a
+	ar r librf24.a $(OBJECTS)
+	ranlib librf24.a
+
 
 # Library parts
 rf24.o: rf24.c rf24.h spi.h gpio.h tsqueue.o

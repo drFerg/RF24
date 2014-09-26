@@ -20,9 +20,6 @@
 #define RDBUF_LEN   5
 #define PACKET_BUFFER_SIZE 15
 #define ISR_PIN 24
-#ifndef ADDR_WIDTH
-#define ADDR_WIDTH 5
-#endif
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
@@ -527,14 +524,16 @@ uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
   return p_len;
 }
 
-void rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
+int rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
   RF24Payload p;
+  if (len > MAX_PAYLOAD_LEN - ADDR_WIDTH) return 0;
   memcpy(p.from, pipe1_address, ADDR_WIDTH);
   memcpy(p.payload, buf, len);
   /* Check if address already set, saves an SPI call */
   if (memcmp(addr, transmit_address, addr_width)) setTXAddress(addr);
   transmit_payload(&p, ADDR_WIDTH + len);
   stats_increment(stats, len, STATS_TX);
+  return 1;
 }
 
 bool rf24_write(const void* buf, uint8_t len) {
