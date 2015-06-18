@@ -96,6 +96,7 @@ uint8_t spi_transfer(SPIState *spi, uint8_t val, uint8_t *rx) {
 	uint8_t tx[BUF_LEN] = {val};
 	uint8_t rx_val[BUF_LEN] = {0};
 	struct spi_ioc_transfer tr;
+	memset(&tr, 0, sizeof(struct spi_ioc_transfer));
 	tr.tx_buf = (unsigned long)tx;
 	tr.rx_buf = (unsigned long)rx_val;
 	tr.len = BUF_LEN;
