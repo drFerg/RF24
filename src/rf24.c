@@ -1,17 +1,25 @@
-/*
- Copyright (C) 2011 J. Coliz <maniacbug@ymail.com>
-
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
- */
-
+#include <pthread.h>
+#include <stdio.h>
+#include <poll.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+#include "rf24.h"
+#include "gpio.h"
+#include "spi.h"
 #include "nRF24L01.h"
-#include "RF24_config.h"
-#include "RF24.h"
+#include "tsqueue.h"
+#include "compatibility.h"
+#include "rf24Stats.h"
 
 #define SPI_BITS 8
 #define SPI_MODE 0
+#define GPIO_FILE_MAXLEN  32
+#define POLL_TIMEOUT    1000
+#define RDBUF_LEN   5
+#define PACKET_BUFFER_SIZE 15
+#define ISR_PIN 24
 
 #define is_rx_fifo_empty() (read_register(FIFO_STATUS) & RX_EMPTY)
 #define is_tx_fifo_empty() (read_register(FIFO_STATUS) & TX_EMPTY)
@@ -20,6 +28,17 @@
 #define rf24_testRPD() rf24_testCarrierDetect()
 #define pipe0_is_set() (pipe0_status & 0x01)
 #define auto_ACK_occurred() (pipe0_status & 0x02)
+
+typedef struct packet {
+  uint8_t len;
+  uint8_t from[ADDR_WIDTH];
+  uint8_t payload[];
+} Packet;
+
+typedef struct rf24_packet {
+  uint8_t from[ADDR_WIDTH];
+  uint8_t payload[MAX_PAYLOAD_LEN];
+} RF24Payload;
 
 SPIState *spi;
 uint8_t enable_pin; /**< "Chip Enable" pin, activates the RX or TX role, unused on rpi */
@@ -38,64 +57,59 @@ uint8_t pipe1_address[5];
 uint8_t pipe234_lsb[3];
 uint8_t transmit_address[5];
 uint8_t addr_width;
+uint8_t listening;
+pthread_t int_thread;
+TSQueue *packets;
+TXRXStats *stats;
 /****************************************************************************/
   // Minimum ideal SPI bus speed is 2x data rate
   // If we assume 2Mbs data rate and 16Mhz clock, a
   // divider of 4 is the minimum we want.
   // CLK:BUS 8Mhz:2Mhz, 16Mhz:4Mhz, or 20Mhz:5Mhz
 
-static const char rf24_datarate_e_str_0[] PROGMEM = "1MBPS";
-static const char rf24_datarate_e_str_1[] PROGMEM = "2MBPS";
-static const char rf24_datarate_e_str_2[] PROGMEM = "250KBPS";
-static const char * const rf24_datarate_e_str_P[] PROGMEM = {
+static const char rf24_datarate_e_str_0[] = "1MBPS";
+static const char rf24_datarate_e_str_1[] = "2MBPS";
+static const char rf24_datarate_e_str_2[] = "250KBPS";
+static const char * const rf24_datarate_e_str_P[] = {
   rf24_datarate_e_str_0, 
   rf24_datarate_e_str_1, 
   rf24_datarate_e_str_2, 
 };
-static const char rf24_model_e_str_0[] PROGMEM = "nRF24L01";
-static const char rf24_model_e_str_1[] PROGMEM = "nRF24L01+";
-static const char * const rf24_model_e_str_P[] PROGMEM = {
+static const char rf24_model_e_str_0[] = "nRF24L01";
+static const char rf24_model_e_str_1[] = "nRF24L01+";
+static const char * const rf24_model_e_str_P[] = {
   rf24_model_e_str_0, 
   rf24_model_e_str_1, 
 };
-static const char rf24_crclength_e_str_0[] PROGMEM = "Disabled";
-static const char rf24_crclength_e_str_1[] PROGMEM = "8 bits";
-static const char rf24_crclength_e_str_2[] PROGMEM = "16 bits";
-static const char * const rf24_crclength_e_str_P[] PROGMEM = {
+static const char rf24_crclength_e_str_0[] = "Disabled";
+static const char rf24_crclength_e_str_1[] = "8 bits";
+static const char rf24_crclength_e_str_2[] = "16 bits";
+static const char * const rf24_crclength_e_str_P[] = {
   rf24_crclength_e_str_0, 
   rf24_crclength_e_str_1, 
   rf24_crclength_e_str_2, 
 };
-static const char rf24_pa_dbm_e_str_0[] PROGMEM = "PA_MIN";
-static const char rf24_pa_dbm_e_str_1[] PROGMEM = "PA_GPIO_LOW";
-static const char rf24_pa_dbm_e_str_2[] PROGMEM = "PA_GPIO_HIGH";
-static const char rf24_pa_dbm_e_str_3[] PROGMEM = "PA_MAX";
-static const char * const rf24_pa_dbm_e_str_P[] PROGMEM = { 
+static const char rf24_pa_dbm_e_str_0[] = "PA_MIN";
+static const char rf24_pa_dbm_e_str_1[] = "PA_GPIO_LOW";
+static const char rf24_pa_dbm_e_str_2[] = "PA_GPIO_HIGH";
+static const char rf24_pa_dbm_e_str_3[] = "PA_MAX";
+static const char * const rf24_pa_dbm_e_str_P[] = { 
   rf24_pa_dbm_e_str_0, 
   rf24_pa_dbm_e_str_1, 
   rf24_pa_dbm_e_str_2, 
   rf24_pa_dbm_e_str_3, 
 };
 
-static const uint8_t pipe_addr[] PROGMEM = {
+static const uint8_t pipe_addr[] = {
   RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5
 };
-static const uint8_t pipe_payload_len[] PROGMEM = {
+static const uint8_t pipe_payload_len[] = {
   RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5
 };
-static const uint8_t pipe_enable[] PROGMEM = {
+static const uint8_t pipe_enable[] = {
   ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5
 };
-
-uint8_t * reverse_address(uint8_t *address){
-  uint8_t i = 0, j = addr_width - 1, temp = 0;
-  while (i < j){
-    temp = address[i];
-    address[i++] = address[j];
-    address[j--] = temp;
-  }
-  return address;
-}
+void *radio_isr_thread();
 
 /***********************/
 /* Register functions  */
@@ -130,7 +144,6 @@ uint8_t write_register_bytes(uint8_t reg, const uint8_t* buf, uint8_t len) {
 
 uint8_t write_register(uint8_t reg, uint8_t value) {
   uint8_t status;
-  /* printf("write_register(%02x, %02x)\r\n", reg, value); */
   spi_enable(spi);
   spi_transfer(spi, W_REGISTER | (REGISTER_MASK & reg), &status);
   spi_transfer(spi, value, NULL);
@@ -214,11 +227,39 @@ uint8_t get_dyn_payload_len() {
 
 /* private function for transmitting packet */
 void transmit_payload(const void* buf, uint8_t len) {
+  if (listening) disable_radio();
   write_register(CONFIG, (read_register(CONFIG) & ~PRIM_RX)); /* Toggle RX/TX mode */
+  microSleep(TRANSITION_DELAY); /* Let the transition to TX mode settle */
   write_payload(buf, len); /* Write the payload to the TX FIFO */
   enable_radio(); /* Pulse radio on CE pin to TX one packet from FIFO */
-  delayMicroseconds(WRITE_DELAY);
+  microSleep(WRITE_DELAY);
   disable_radio();
+  microSleep(TRANSITION_DELAY); /* Let the transition to Standby mode settle */
+  if (listening) rf24_startListening();
+}
+
+/*********************/
+/* Address functions */
+/*********************/
+uint8_t *reverse_address(uint8_t *address){
+  uint8_t i = 0, j = addr_width - 1, temp = 0;
+  while (i < j){
+    temp = address[i];
+    address[i++] = address[j];
+    address[j--] = temp;
+  }
+  return address;
+}
+
+uint8_t rf24_setAddressWidth(uint8_t address_width){
+  if (address_width > MAX_ADDR_WIDTH || address_width < MIN_ADDR_WIDTH) return 0;
+  write_register(AW, address_width);
+  addr_width = address_width;
+  return addr_width;
+}
+
+uint8_t rf24_getAddressWidth(){
+  return read_register(AW);
 }
 
 void setTXAddress(uint8_t *addr) {
@@ -231,6 +272,10 @@ void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
   if (pipe == 0){ /* cache pipe0 address as ackWrites overwrite this */
     pipe0_status = PIPE0_SET;
     memcpy(pipe0_address, address, addr_width);
+  } else if (pipe == 1) {
+    memcpy(pipe1_address, address, addr_width);
+  } else {
+    memcpy(pipe234_lsb, address, 1);
   }
   switch(pipe){ /* For pipes 2-5, only write the last byte */
     case(0):
@@ -240,6 +285,10 @@ void rf24_setRXAddressOnPipe(uint8_t *address, uint8_t pipe) {
   write_register(pipe_payload_len[pipe], payload_len); /* Set payload len and enable */
   write_register(EN_RXADDR, (read_register(EN_RXADDR) | pipe_enable[pipe]));
 }
+
+/***************************/
+/* TX Rate/Power functions */
+/***************************/
 
 void rf24_setDataRate(rf24_datarate_e speed) {
   uint8_t setup = read_register(RF_SETUP);
@@ -256,6 +305,7 @@ void rf24_setDataRate(rf24_datarate_e speed) {
       setup |= RF_DR_2M; /* Set high speed bit */
       break;
     }
+    case(RF24_ERROR): return;
   }
   write_register(RF_SETUP, setup);
 }
@@ -292,6 +342,10 @@ rf24_pa_dbm_e rf24_getPALevel() {
   }
 }
 
+/*****************/
+/* CRC Functions */
+/*****************/
+
 void rf24_setCRCLength(rf24_crclength_e length) {
   uint8_t config = read_register(CONFIG) & ~CRC_BITS; /* Clear CRC bits */
   switch(length){
@@ -300,10 +354,6 @@ void rf24_setCRCLength(rf24_crclength_e length) {
     case(RF24_CRC_16): config |= EN_CRC_16; break; /* Enable 16bit CRC */
   }
   write_register(CONFIG, config);
-}
-
-void rf24_disableCRC() {
-  rf24_setCRCLength(RF24_CRC_DISABLED);
 }
 
 rf24_crclength_e rf24_getCRCLength() {
@@ -323,17 +373,6 @@ void rf24_setRetries(uint8_t delay, uint8_t count) {
  write_register(SETUP_RETR, (delay&0xf)<<ARD | (count&0xf)<<ARC);
 }
 
-uint8_t rf24_setAddressWidth(uint8_t address_width){
-  if (address_width > MAX_ADDR_WIDTH || address_width < MIN_ADDR_WIDTH) return 0;
-  write_register(AW, address_width);
-  addr_width = address_width;
-  return addr_width;
-}
-
-uint8_t rf24_getAddressWidth(){
-  return read_register(AW);
-}
-
 void rf24_setChannel(uint8_t channel) {
   // TODO: This method could take advantage of the 'wide_band' calculation
   // done in setChannel() to require certain channel spacing.
@@ -348,16 +387,7 @@ uint8_t rf24_getPayloadSize() {
   return payload_len;
 }
 
-uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
-  // Initialize pins
-  spidevice = spi_device;
-  spispeed = spi_speed;
-  enable_pin = cepin;
-  chip_select = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
-  gpio_open(enable_pin, GPIO_OUT);
-
-  spi = spi_init(spidevice, SPI_MODE, SPI_BITS, spispeed, chip_select);
-  if (spi == NULL) return 0;
+void setDefaults() {
   disable_radio();
 
   // Must allow the radio time to settle else configuration bits will not necessarily stick.
@@ -366,7 +396,7 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // Enabling 16b CRC is by far the most obvious case if the wrong timing is used - or skipped.
   // Technically we require 4.5ms + 14us as a worst case. We'll just call it 5ms for good measure.
   // WARNING: Delay is based on P-variant whereby non-P *may* require different timing.
-  delay(5);
+  milliSleep(5);
   // Set 1500uS (minimum for 32B payload in ESB@250KBPS) timeouts, to make testing a little easier
   // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet
   // sizes must never be used. See documentation for a more complete explanation.
@@ -401,14 +431,36 @@ uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
   // spectrum.
   rf24_setChannel(76);
 
+  /* Set default address width to 5bytes */
+  rf24_setAddressWidth(5);
+
   // Flush buffers
   flush_rx();
   flush_tx();
+  listening = FALSE;
+}
+
+uint8_t rf24_init_radio(char *spi_device, uint32_t spi_speed, uint8_t cepin) {
+  // Initialize pins
+  spidevice = spi_device;
+  spispeed = spi_speed;
+  enable_pin = cepin;
+  chip_select = (strncmp(spidevice, "/dev/spidev0.1", 14) ? 8 : 9);
+  gpio_open(enable_pin, GPIO_OUT);
+
+  spi = spi_init(spidevice, SPI_MODE, SPI_BITS, spispeed, chip_select);
+  if (spi == NULL) return 0;
+  setDefaults();
+  stats = stats_create(1);
+  stats_start_monitor(stats);
+  pthread_create(&int_thread, NULL, radio_isr_thread, NULL);
+  packets = tsq_create(PACKET_BUFFER_SIZE);
   return 1;
 }
 
 void rf24_resetcfg(){
   write_register(CONFIG, RST_CFG);
+  setDefaults();
 }
 
 void rf24_startListening() {
@@ -418,23 +470,25 @@ void rf24_startListening() {
   if (PIPE0_SET && PIPE0_AUTO_ACKED) 
     write_register_bytes(RX_ADDR_P0, reverse_address(pipe0_address), addr_width);
   enable_radio();
-  delayMicroseconds(LISTEN_DELAY); /* wait for the radio to come up */
+  microSleep(TRANSITION_DELAY); /* wait for the radio to come up */
+  listening = TRUE;
 }
 
 void rf24_stopListening() {
   disable_radio();
   flush_tx();
   flush_rx();
+  listening = FALSE;
 }
 
 void rf24_powerDown() {
   write_register(CONFIG, (read_register(CONFIG) & ~PWR_UP));
-  delayMicroseconds(POWER_DOWN_DELAY);
+  microSleep(POWER_DOWN_DELAY);
 }
 
 void rf24_powerUp() {
   write_register(CONFIG, (read_register(CONFIG) | PWR_UP));
-  delayMicroseconds(POWER_UP_DELAY);
+  microSleep(POWER_UP_DELAY);
 }
 
 bool rf24_available(uint8_t* pipe_num) {
@@ -447,26 +501,39 @@ bool rf24_available(uint8_t* pipe_num) {
   return result;
 }
 
-uint8_t rf24_recv(void* buf, uint8_t len, uint8_t flags) {
-  uint8_t payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
-  if (payload_len > MAX_PAYLOAD_LEN){
-    flush_rx(); /* Invalid payload needs flushing */
-    return -1;
-  }
-  read_payload(buf, len, payload_len); /* Fetch the payload */
-  if (is_rx_fifo_empty()) /* Clear status bit if there are no more payloads */
-    write_register(STATUS, RX_DR);
-  return payload_len;
+bool rf24_packetAvailable(){
+  return tsq_count(packets) > 0;
 }
 
-bool rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
-  bool tx_ok = FALSE;
+uint8_t rf24_recv(void* buf, uint8_t len, uint8_t block) {
+  Packet * p = tsq_remove(packets, block);
+  if (p == NULL) return 0; /* No packet available (nonblocking) */
+  memcpy(buf, p->payload, (p->len > len ? len : p->len));
+  uint8_t p_len = p->len - ADDR_WIDTH; /* Save len whilst we free the memory */
+  free(p);
+  return p_len;
+}
+
+uint8_t rf24_recvfrom(void* buf, uint8_t len, uint8_t *from, uint8_t block) {
+  Packet * p = tsq_remove(packets, block);
+  if (p == NULL) return 0; /* No packet available (nonblocking) */
+  memcpy(buf, p->payload, (p->len > len ? len : p->len));
+  memcpy(from, p->from, addr_width);
+  uint8_t p_len = p->len - ADDR_WIDTH; /* Save len whilst we free the memory */
+  free(p);
+  return p_len;
+}
+
+int rf24_send(uint8_t *addr, const void* buf, uint8_t len) {
+  RF24Payload p;
+  if (len > MAX_PAYLOAD_LEN - ADDR_WIDTH) return 0;
+  memcpy(p.from, pipe1_address, ADDR_WIDTH);
+  memcpy(p.payload, buf, len);
   /* Check if address already set, saves an SPI call */
   if (memcmp(addr, transmit_address, addr_width)) setTXAddress(addr);
-  transmit_payload(buf, len);
-  rf24_getStatus(&tx_ok, NULL, NULL); /* Only interested in if it was tx'd */
-  printf("TX: %s\n", (tx_ok ? "successful" : "failed"));
-  return tx_ok;
+  transmit_payload(&p, ADDR_WIDTH + len);
+  stats_increment(stats, len, STATS_TX);
+  return 1;
 }
 
 bool rf24_write(const void* buf, uint8_t len) {
@@ -475,14 +542,14 @@ bool rf24_write(const void* buf, uint8_t len) {
 
   uint8_t observe_tx;
   uint8_t status;
-  uint32_t sent_at = __millis();
+  uint32_t sent_at = millis();
   const uint32_t timeout = 500; //ms to wait for timeout
   do
   {
     status = read_register_bytes(OBSERVE_TX, &observe_tx, 1);
-    IF_SERIAL_DEBUG(printf("%x", observe_tx));
+    DEBUG_PRINT(printf("%x", observe_tx));
   }
-  while(! (status & (TX_DS | MAX_RT)) && (__millis() - sent_at < timeout));
+  while(! (status & (TX_DS | MAX_RT)) && (millis() - sent_at < timeout));
 
   bool tx_ok, tx_fail;
   rf24_getStatus(&tx_ok, &tx_fail, &ack_payload_available);
@@ -490,13 +557,13 @@ bool rf24_write(const void* buf, uint8_t len) {
   //printf("%u%u%u\r\n", tx_ok, tx_fail, ack_payload_available);
 
   result = tx_ok;
-  IF_SERIAL_DEBUG(printf("%s\n", result ? "...OK." : "...Failed"));
+  DEBUG_PRINT(printf("%s\n", result ? "...OK." : "...Failed"));
 
   // Handle the ack packet
   if (ack_payload_available) {
     ack_payload_length = get_dyn_payload_len();
-    IF_SERIAL_DEBUG(printf("[AckPacket]/"));
-    IF_SERIAL_DEBUG(printf("%i\n", ack_payload_length));
+    DEBUG_PRINT(printf("[AckPacket]/"));
+    DEBUG_PRINT(printf("%i\n", ack_payload_length));
   }
   return result;
 }
@@ -504,6 +571,13 @@ bool rf24_write(const void* buf, uint8_t len) {
 void rf24_getStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
   /* Read the status field and clear the bits in one call*/
   uint8_t status = write_register(STATUS, (RX_DR | TX_DS | MAX_RT));
+  if (tx_ok) *tx_ok = status & TX_DS;
+  if (tx_fail) *tx_fail = status & MAX_RT;
+  if (rx_ready) *rx_ready = status & RX_DR;
+}
+
+void rf24_peekStatus(bool *tx_ok, bool *tx_fail, bool *rx_ready) {
+  uint8_t status = check_status();
   if (tx_ok) *tx_ok = status & TX_DS;
   if (tx_fail) *tx_fail = status & MAX_RT;
   if (rx_ready) *rx_ready = status & RX_DR;
@@ -542,7 +616,7 @@ void rf24_enableAckPayload() {
       write_register(FEATURE, (EN_ACK_PAY | EN_DPL));
     }
   }
-  IF_SERIAL_DEBUG(printf("FEATURE=%i\r\n", read_register(FEATURE)));
+  DEBUG_PRINT(printf("FEATURE=%i\r\n", read_register(FEATURE)));
   /* Enable dynamic payload on pipes 0 */
   write_register(DYNPD, (read_register(DYNPD) | DPL_P0));
 }
@@ -614,7 +688,6 @@ void print_address_register(char* name, uint8_t reg, uint8_t qty) {
     uint8_t* bufptr = buffer + sizeof(buffer);
     while(--bufptr >= buffer) printf("%02x", *bufptr);
   }
-
   printf("\r\n");
 }
 
@@ -622,10 +695,10 @@ void rf24_printDetails() {
   printf("SPI device\t = %s\r\n", spidevice);
   printf("SPI speed\t = %d\r\n", spispeed);
   printf("CE GPIO\t = %d\r\n", enable_pin);
-  printf("Data Rate\t = %s\r\n", pgm_read_word(&rf24_datarate_e_str_P[rf24_getDataRate()]));
-  printf("Model\t\t = %s\r\n", pgm_read_word(&rf24_model_e_str_P[isPVariant()]));
-  printf("CRC Length\t = %s\r\n", pgm_read_word(&rf24_crclength_e_str_P[rf24_getCRCLength()]));
-  printf("PA Power\t = %s\r\n", pgm_read_word(&rf24_pa_dbm_e_str_P[rf24_getPALevel()]));
+  printf("Data Rate\t = %s\r\n", rf24_datarate_e_str_P[rf24_getDataRate()]);
+  printf("Model\t\t = %s\r\n", rf24_model_e_str_P[isPVariant()]);
+  printf("CRC Length\t = %s\r\n", rf24_crclength_e_str_P[rf24_getCRCLength()]);
+  printf("PA Power\t = %s\r\n", rf24_pa_dbm_e_str_P[rf24_getPALevel()]);
   print_status(check_status());
   print_address_register("RX_ADDR_P0-1", RX_ADDR_P0, 2);
   print_byte_register("RX_ADDR_P2-5", RX_ADDR_P2);
@@ -637,4 +710,75 @@ void rf24_printDetails() {
   print_byte_register("RF_SETUP", RF_SETUP);
   print_byte_register("CONFIG", CONFIG);
   print_byte_register("DYNPD/FEATURE", DYNPD);
+}
+
+int setup_isr_thread(int pin) {
+  char gpio_file[GPIO_FILE_MAXLEN];
+  gpio_open(pin, GPIO_IN);
+  gpio_enable_edge(pin, GPIO_FALLING_EDGE);
+  memset(gpio_file, 0x00, GPIO_FILE_MAXLEN);
+  snprintf(gpio_file, GPIO_FILE_MAXLEN - 1, "/sys/class/gpio/gpio%d/value", pin);
+  return open(gpio_file, O_RDONLY);
+}
+
+void retrieve_packets(){
+  uint8_t payload_len;
+  Packet *packet;
+  while (!is_rx_fifo_empty()){
+    payload_len = (dyn_payloads_set ? get_dyn_payload_len() : MAX_PAYLOAD_LEN);
+    if (payload_len > MAX_PAYLOAD_LEN){
+      flush_rx(); /* Invalid payload needs flushing */
+      continue;
+    }
+    packet = (Packet*)malloc(sizeof(Packet) + (payload_len - ADDR_WIDTH));
+    if (packet == NULL) return; /* Failing silently, probably need to tell someone about this */ 
+    packet->len = payload_len;
+    read_payload(packet->from, payload_len, payload_len); /* Fetch the payload */
+    tsq_add(packets, packet, 0); /* Don't block, if the q is full it's dropped */
+    stats_increment(stats, payload_len - ADDR_WIDTH, STATS_RX);
+  }
+  /* Clear status bit if there are no more payloads */
+  write_register(STATUS, RX_DR);
+}
+
+void process_radio_interrupt() {
+  bool tx_ok, tx_fail, pkt_avail;
+  rf24_peekStatus(&tx_ok, &tx_fail, &pkt_avail);
+  if (pkt_avail) retrieve_packets();
+  if (tx_ok) {
+    printf(">> TX successful\n");
+    write_register(STATUS, TX_DS);
+  }
+}
+
+void *radio_isr_thread() {
+  int fd, result;
+  struct pollfd pfd;
+  char rdbuf[RDBUF_LEN];
+  fd = setup_isr_thread(ISR_PIN);
+  if (fd < 0) {
+    perror("gpio_file");
+    return (void *)-1;
+  }
+  pfd.fd = fd;
+  pfd.events = POLLPRI;
+
+  while(1) {
+    memset(rdbuf, 0x00, RDBUF_LEN);
+    lseek(fd, 0, SEEK_SET);
+    result = poll(&pfd, 1, -1);
+    if (result < 0) {
+      perror("poll()");
+      close(fd);
+      return (void *)3;
+    }
+    result = read(fd, rdbuf, RDBUF_LEN);
+    if (result < 0) {
+      perror("read()");
+      return (void *)4;
+    }
+    process_radio_interrupt();
+  }
+  close(fd);
+  return (void *)0;
 }

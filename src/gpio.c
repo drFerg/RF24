@@ -10,7 +10,7 @@ int gpio_open(int port, int dir) {
 	if (f == NULL) return ERROR;
 	fprintf(f, "%d\n", port);
 	fclose(f);
-
+	
 	sprintf(path, "/sys/class/gpio/gpio%d/direction", port);
 	f = fopen(path, "w");
 	if (f == NULL) return ERROR;
@@ -47,4 +47,20 @@ int gpio_write(int port, int val){
 	fprintf(f, "%s\n", (val ? "1" : "0"));
 	fclose(f);
 	return OK;
+}
+
+int gpio_enable_edge(int port, int edge){
+	FILE *f;
+	char file[40];
+	sprintf (file, "/sys/class/gpio/gpio%d/edge", port) ;
+  	f = fopen(file, "w");
+  	if (f == NULL) return ERROR;
+  	switch(edge) {
+  		case(0): fprintf(f, "none\n"); break;
+  		case(1): fprintf(f, "falling\n"); break;
+  		case(2): fprintf(f, "rising\n"); break;
+  		case(3): fprintf(f, "both\n"); break;
+  	}
+  	fclose(f);
+  	return OK;
 }

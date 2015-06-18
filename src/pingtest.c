@@ -1,10 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "RF24.h"
+#include <string.h>
+#include <stdint.h>
+#include "compatibility.h"
+#include "rf24.h"
 
-uint8_t address[5] = {0xF0,0xF0,0xF0,0xF0,0xE1};
+uint8_t address[5] = {0xF0, 0xF0, 0xF0, 0xF0, 0xE1};
 /* 32 byte character array is max payload */
 char receivePayload[32];
+uint8_t receiveAddr[5];
 uint8_t len;
 
 typedef struct result {
@@ -88,28 +92,24 @@ void setup(void) {
     rf24_resetcfg();
     rf24_enableDynamicPayloads();
     rf24_setAutoAckOnPipe(1, 0);
-    rf24_setRetries(15,15);
-    rf24_setDataRate(RF24_1MBPS);
-    rf24_setPALevel(RF24_PA_MAX);
-    rf24_setChannel(76);
-    rf24_setCRCLength(RF24_CRC_16);
-    rf24_setAddressWidth(5);
     rf24_setRXAddressOnPipe(address, 1);
     rf24_startListening();
-    rf24_printDetails();   
+    rf24_printDetails();
 }
  
 void loop(void) {
-    while (rf24_available(NULL)) {
-        len = rf24_recv(receivePayload, len, 0);
-        // display payload
-        printf("Recvd pkt - len: %d : %s\n", len, receivePayload);
+    while(rf24_packetAvailable()) {
+        memset(receivePayload, 0, 32);
+        len = rf24_recvfrom(receivePayload, len, receiveAddr, 1); /* Blocking recv */
+        printf("Recvd pkt - len: %d : %d\n", len, receivePayload[0]);
+        rf24_send(receiveAddr, receivePayload, len);
     }
 }
  
-int main(int argc, char** argv) {
+int main() {
     setup();
-    while(1)
+    while(1) {
         loop();
+    }
     return 0;
 }

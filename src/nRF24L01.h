@@ -177,7 +177,7 @@
 #define POWER_UP_DELAY 150 /* Tpd2stby - delay before CE can be set high */
 #define POWER_DOWN_DELAY 150
 #define WRITE_DELAY 10 /* Thce - Minimum delay for 1 packet to be sent */ 
-#define LISTEN_DELAY 130
+#define TRANSITION_DELAY 130
 
 /* Other defines */
 #define MAX_CHANNEL 127
