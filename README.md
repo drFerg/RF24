@@ -1,8 +1,8 @@
 # A C Raspberry Pi driver for nRF24L01(+) 2.4GHz Wireless Transceiver
 
-WIP
+Almost comlete - WIP
 ---
-Pretty much a complete re-write of the existing code base to clean up, tighten and improve the library. Thus, it's currently in less operational state until all the carefully balanced code is re-factored and made stable. :D
+Pretty much a complete re-write of the existing code base to convert to C and improve safety. Thus, it may be in a less operational state than the C++ version but should provide the basic features. :D
 
 Design Goals: 
 
@@ -31,22 +31,15 @@ Please refer to links :
 
 
 
-Raspberry Pi RF24 libraries
+Raspberry Pi RF24 library
 ===========================
 
-This is the collection of libraries for RF24 / NRF24L01 wireless modules on the raspberry pi.
-
-There are three folders with three different libraries :-
-
-- **librf24**			This library/driver is ported from Arduino to beaglebone then to RPi, uses GPIO
-- **librf24-bcm**		This library/driver is further ported to use Broadcom bcm2835 using hardware SPI
-- **librf24-wiringpi**	This library/driver implements a modified version of librf24 which uses WiringPi
+This is a C based library for RF24 / NRF24L01 wireless modules on the raspberry pi.
 
 Setup
 =====
-1. Change to the selected folder
-2. Execute "make" and "sudo make install" to install the shared libraries
-3. Change to examples folder, change to the correct connected pins and execte "make"
+1. Execute "make" and "sudo make install" to install the shared libraries
+2. Change to examples folder, change to the correct connected pins and execute "make"
 
 
 Known issues
@@ -62,7 +55,7 @@ Links
 - RF24 Class Reference http://maniacbug.github.com/RF24/classRF24.html
 
 
-Contact
+Previous Maintainers of C++ versions
 =======
 Stanley Seow ( stanleyseow@gmail.com )
 https://github.com/stanleyseow/RF24
