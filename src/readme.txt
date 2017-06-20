@@ -1,16 +1,16 @@
-this is library to use the nrf24l01 on the raspberry pi.
+This is library to use the nrf24l01 on the raspberry pi.
 
-it's based on the arduino lib from J. Coliz <maniacbug@ymail.com>.
-the library was berryfied by Purinda Gunasekara <purinda@gmail.com>.
+It's based on the arduino lib from J. Coliz <maniacbug@ymail.com>.
+The library was berryfied by Purinda Gunasekara <purinda@gmail.com> before being C-ified here.
 
-examples
+Examples
 ========
 you need to set the library path:
 cd examples
 export LD_LIBRARY_PATH=.
 ./pingtest
 
-In my examples I used /dev/spidev0.0 and GPIO25
+In the examples I used /dev/spidev0.0 and GPIO25
 I have a model 1 rpi so you should check if the pins are on the same spot
 nrf-vcc = rpi-3v3 (1)
 nrf-gnd = rpi-gnd (6)
@@ -24,7 +24,7 @@ known issues
 ============
 spidev0.0 or spidev0.1 doesn't seem to work. 
 
-contact
+Previous maintainers of C++ version
 =======
 Arco van Geest <arco@appeltaart.mine.nu>
 
