@@ -1,6 +1,6 @@
 # A C Raspberry Pi driver for nRF24L01(+) 2.4GHz Wireless Transceiver
 
-Almost comlete - WIP
+Almost complete - WIP
 ---
 Pretty much a complete re-write of the existing code base to convert to C and improve safety. Thus, it may be in a less operational state than the C++ version but should provide the basic features. :D
 
