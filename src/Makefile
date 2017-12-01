@@ -55,4 +55,8 @@ install: rf24.o
 	ln -sf ${LIBDIR}/${LIBNAME} ${LIBDIR}/librf24.so
 	ldconfig
 
-.PHONY: clean lib all install
+uninstall: 
+	rm ${LIBDIR}/${LIBNAME} ${LIBDIR}/librf24.so.1 ${LIBDIR}/librf24.so
+	ldconfig
+	
+.PHONY: clean lib all install uninstall
