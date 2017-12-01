@@ -4,6 +4,8 @@ Almost complete - WIP
 ---
 Pretty much a complete re-write of the existing code base to convert to C and improve safety. Thus, it may be in a less operational state than the C++ version but should provide the basic features. :D
 
+***Currently examples directory does utilise the new library, use src/pingtest.c for reference instead ***
+
 Design Goals: 
 
 * Maximally compliant with the intended operation of the chip
