@@ -21,9 +21,9 @@ endif
 
 OBJECTS = rf24.o spi.o gpio.o compatibility.o tsqueue.o queue.o rf24Stats.o
 
-all: pingtest
+all: lib
 
-lib: all
+lib: $(OBJECTS)
 	rm -f librf24.a
 	ar r librf24.a $(OBJECTS)
 	ranlib librf24.a
@@ -48,9 +48,11 @@ clean:
 	rm -rf *o ${LIBNAME}
 
 # Install the library to LIBPATH
-install: 
+install: rf24.o
+	gcc rf24.o -shared -o $(LIBNAME)
 	cp librf24.so.1.0 ${LIBDIR}/${LIBNAME}
 	ln -sf ${LIBDIR}/${LIBNAME} ${LIBDIR}/librf24.so.1
 	ln -sf ${LIBDIR}/${LIBNAME} ${LIBDIR}/librf24.so
 	ldconfig
 
+.PHONY: clean lib all install
