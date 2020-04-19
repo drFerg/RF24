@@ -4,7 +4,7 @@ Almost complete - WIP
 ---
 Pretty much a complete re-write of the existing code base to convert to C and improve safety. Thus, it may be in a less operational state than the C++ version but should provide the basic features. :D
 
-***Currently examples directory does utilise the new library, use src/pingtest.c for reference instead ***
+***Currently examples directory does not utilise the new library, use src/pingtest.c for reference instead ***
 
 Design Goals: 
 
@@ -26,8 +26,6 @@ Please refer to links :
 * [Blog on setting up both Arduino UNO & Raspberry Pi] (http://arduino-for-beginners.blogspot.com/2013/02/setup-nordic-nrf24l01-rf-modules-to.html)
 * [Documentation Main Page](http://maniacbug.github.com/RF24)
 * [RF24 Class Documentation](http://maniacbug.github.com/RF24/classRF24.html)
-* [Source Code](https://github.com/maniacbug/RF24)
-* [Downloads](https://github.com/maniacbug/RF24/archives/master)
 * [nRF24L01+ datasheet](http://www.nordicsemi.com/eng/nordic/download_resource/8765/2/27999719 )
 
 
@@ -40,8 +38,8 @@ This is a C based library for RF24 / NRF24L01 wireless modules on the raspberry 
 
 Setup
 =====
-1. Execute "make" and "sudo make install" to install the shared libraries
-2. Change to examples folder, change to the correct connected pins and execute "make"
+1. Execute `make` and `sudo make install` to install the shared libraries
+2. Execute `make pingtest` and run `./pingtest` to test library.
 
 
 Known issues
