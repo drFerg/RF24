@@ -38,8 +38,9 @@ This is a C based library for RF24 / NRF24L01 wireless modules on the raspberry 
 
 Setup
 =====
-1. Execute `make` and `sudo make install` to install the shared libraries
-2. Execute `make pingtest` and run `./pingtest` to test library.
+1. `cd src`
+2. Execute `make` and `sudo make install` to install the shared libraries
+3. Execute `make pingtest` and run `./pingtest` to test library.
 
 
 Known issues
